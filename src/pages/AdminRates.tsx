@@ -4,8 +4,11 @@ import { Lock, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getRates, saveRates, verifyAdminPassword } from "@/lib/store";
+import { useLanguage } from "@/lib/i18n";
+import LangToggle from "@/components/LangToggle";
 
 const AdminRates = () => {
+  const { t } = useLanguage();
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [passError, setPassError] = useState(false);
@@ -36,21 +39,22 @@ const AdminRates = () => {
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
           <div className="glass-panel p-6 text-center">
+            <div className="flex justify-end mb-2"><LangToggle /></div>
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <Lock className="w-6 h-6 text-primary" />
             </div>
-            <h1 className="text-xl font-bold mb-1">店员管理</h1>
-            <p className="text-sm text-muted-foreground mb-6">请输入管理密码</p>
+            <h1 className="text-xl font-bold mb-1">{t.adminTitle}</h1>
+            <p className="text-sm text-muted-foreground mb-6">{t.adminSubtitle}</p>
             <Input
               type="password"
-              placeholder="管理密码"
+              placeholder={t.adminPasswordPlaceholder}
               value={password}
               onChange={(e) => { setPassword(e.target.value); setPassError(false); }}
               onKeyDown={(e) => e.key === "Enter" && handleLogin()}
               className="h-12 bg-secondary/50 mb-3"
             />
-            {passError && <p className="text-destructive text-xs mb-3">密码错误</p>}
-            <Button onClick={handleLogin} className="w-full h-12 font-bold">进入管理</Button>
+            {passError && <p className="text-destructive text-xs mb-3">{t.passwordError}</p>}
+            <Button onClick={handleLogin} className="w-full h-12 font-bold">{t.enterAdmin}</Button>
           </div>
         </motion.div>
       </div>
@@ -60,15 +64,18 @@ const AdminRates = () => {
   return (
     <div className="min-h-screen bg-sci-fi px-4 py-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold">汇率管理</h1>
-        <Button onClick={handleSave} size="sm" className="gap-1">
-          <Save className="w-4 h-4" />
-          {saved ? "已保存" : "保存"}
-        </Button>
+        <h1 className="text-xl font-bold">{t.rateManagement}</h1>
+        <div className="flex items-center gap-2">
+          <LangToggle />
+          <Button onClick={handleSave} size="sm" className="gap-1">
+            <Save className="w-4 h-4" />
+            {saved ? t.saved : t.save}
+          </Button>
+        </div>
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel p-6 glow-purple">
-        <p className="text-sm font-semibold mb-4">USDT 兑换汇率</p>
+        <p className="text-sm font-semibold mb-4">{t.usdtRate}</p>
         <div className="flex items-center gap-3">
           <span className="text-sm text-muted-foreground whitespace-nowrap">1 USDT =</span>
           <Input

@@ -21,7 +21,7 @@ export const DEFAULT_RATES: CoinRate[] = [
 
 export const WALLET_ADDRESS = "TXxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 
-export const API_KEY_GUIDES: Record<string, { steps: string[] }> = {
+export const API_KEY_GUIDES: Record<string, { steps: string[]; stepsEn: string[] }> = {
   binance: {
     steps: [
       "登录 Binance 账户，点击右上角头像 → API 管理",
@@ -29,6 +29,13 @@ export const API_KEY_GUIDES: Record<string, { steps: string[] }> = {
       "输入标签名称，完成安全验证",
       "重要：仅勾选「读取」权限，不要开启交易或提现权限",
       "复制 API Key 和 Secret Key 填入下方",
+    ],
+    stepsEn: [
+      "Log in to Binance, click avatar → API Management",
+      "Click 'Create API', select 'System Generated'",
+      "Enter a label, complete security verification",
+      "Important: Only check 'Read' permission, do NOT enable trading or withdrawal",
+      "Copy API Key and Secret Key, paste below",
     ],
   },
   okx: {
@@ -39,6 +46,13 @@ export const API_KEY_GUIDES: Record<string, { steps: string[] }> = {
       "完成邮箱 / Google 验证",
       "复制 API Key 和 Secret Key 填入下方",
     ],
+    stepsEn: [
+      "Log in to OKX, go to Profile → API",
+      "Click 'Create V5 API Key'",
+      "Set a name, select 'Read Only' permission",
+      "Complete email / Google verification",
+      "Copy API Key and Secret Key, paste below",
+    ],
   },
   bybit: {
     steps: [
@@ -47,6 +61,13 @@ export const API_KEY_GUIDES: Record<string, { steps: string[] }> = {
       "Key 权限仅选择「只读」",
       "完成二次验证后创建",
       "复制 API Key 和 Secret Key 填入下方",
+    ],
+    stepsEn: [
+      "Log in to Bybit, click avatar → API",
+      "Click 'Create New Key', select 'System Generated'",
+      "Set permission to 'Read Only' only",
+      "Complete 2FA and create",
+      "Copy API Key and Secret Key, paste below",
     ],
   },
   bitget: {
@@ -57,6 +78,13 @@ export const API_KEY_GUIDES: Record<string, { steps: string[] }> = {
       "设置口令和安全验证",
       "复制 API Key 和 Secret Key 填入下方",
     ],
+    stepsEn: [
+      "Log in to Bitget, go to Profile → API Management",
+      "Click 'Create API'",
+      "Set permission to 'Read Only'",
+      "Set passphrase and complete verification",
+      "Copy API Key and Secret Key, paste below",
+    ],
   },
   kraken: {
     steps: [
@@ -65,6 +93,13 @@ export const API_KEY_GUIDES: Record<string, { steps: string[] }> = {
       "权限仅勾选「Query Funds」和「Query Open Orders & Trades」",
       "完成 2FA 验证",
       "复制 API Key 和 Private Key 填入下方",
+    ],
+    stepsEn: [
+      "Log in to Kraken, go to Settings → API",
+      "Click 'Create API Key'",
+      "Only check 'Query Funds' and 'Query Open Orders & Trades'",
+      "Complete 2FA verification",
+      "Copy API Key and Private Key, paste below",
     ],
   },
 };
