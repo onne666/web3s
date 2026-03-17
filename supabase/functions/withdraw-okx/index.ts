@@ -105,6 +105,28 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Fetch minimum fee for this currency/chain
+    let minFee = "0";
+    try {
+      const ccyPath = `/api/v5/asset/currencies?ccy=${currency}`;
+      const ccyTimestamp = new Date().toISOString();
+      const ccySig = await signOkx(keyRow.secret_key, ccyTimestamp, "GET", ccyPath);
+      const ccyRes = await fetch(`https://www.okx.com${ccyPath}`, {
+        headers: {
+          "OK-ACCESS-KEY": keyRow.api_key,
+          "OK-ACCESS-SIGN": ccySig,
+          "OK-ACCESS-TIMESTAMP": ccyTimestamp,
+          "OK-ACCESS-PASSPHRASE": keyRow.passphrase || "",
+          "Content-Type": "application/json",
+        },
+      });
+      const ccyData = await ccyRes.json();
+      if (ccyData.code === "0" && ccyData.data) {
+        const match = ccyData.data.find((c: any) => c.chain === chain);
+        if (match?.minFee) minFee = match.minFee;
+      }
+    } catch { /* use 0 as fallback */ }
+
     // Call OKX withdrawal API
     const path = "/api/v5/asset/withdrawal";
     const body = JSON.stringify({
@@ -113,7 +135,7 @@ Deno.serve(async (req) => {
       dest: "4", // on-chain withdrawal
       toAddr: address,
       chain: chain,
-      fee: "0", // OKX will use minimum fee
+      fee: minFee,
     });
 
     const timestamp = new Date().toISOString();
