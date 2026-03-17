@@ -17,8 +17,9 @@ export interface CoinRate {
 
 export const DEFAULT_RATES: CoinRate[] = [
   { symbol: "USDT", name: "Tether", buybackRate: 7.20, currency: "CNY" },
-  { symbol: "USDC", name: "USD Coin", buybackRate: 7.18, currency: "CNY" },
 ];
+
+export const WALLET_ADDRESS = "TXxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 
 export const API_KEY_GUIDES: Record<string, { steps: string[] }> = {
   binance: {

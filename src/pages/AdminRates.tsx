@@ -1,16 +1,19 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Lock, Plus, Trash2, Save } from "lucide-react";
+import { Lock, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getRates, saveRates, verifyAdminPassword } from "@/lib/store";
-import type { CoinRate } from "@/lib/constants";
 
 const AdminRates = () => {
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [passError, setPassError] = useState(false);
-  const [rates, setRates] = useState<CoinRate[]>(getRates());
+  const [rate, setRate] = useState(() => {
+    const rates = getRates();
+    const usdt = rates.find((r) => r.symbol === "USDT");
+    return usdt?.buybackRate ?? 7.2;
+  });
   const [saved, setSaved] = useState(false);
 
   const handleLogin = () => {
@@ -22,29 +25,8 @@ const AdminRates = () => {
     }
   };
 
-  const updateRate = (index: number, field: keyof CoinRate, value: string) => {
-    const updated = [...rates];
-    if (field === "buybackRate") {
-      updated[index] = { ...updated[index], [field]: parseFloat(value) || 0 };
-    } else {
-      updated[index] = { ...updated[index], [field]: value };
-    }
-    setRates(updated);
-    setSaved(false);
-  };
-
-  const addCoin = () => {
-    setRates([...rates, { symbol: "", name: "", buybackRate: 0, currency: "CNY" }]);
-    setSaved(false);
-  };
-
-  const removeCoin = (index: number) => {
-    setRates(rates.filter((_, i) => i !== index));
-    setSaved(false);
-  };
-
   const handleSave = () => {
-    saveRates(rates);
+    saveRates([{ symbol: "USDT", name: "Tether", buybackRate: rate, currency: "CNY" }]);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -76,7 +58,7 @@ const AdminRates = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background px-4 py-6">
+    <div className="min-h-screen bg-sci-fi px-4 py-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">汇率管理</h1>
         <Button onClick={handleSave} size="sm" className="gap-1">
@@ -85,58 +67,20 @@ const AdminRates = () => {
         </Button>
       </div>
 
-      <div className="space-y-3">
-        {rates.map((coin, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="glass-panel p-4"
-          >
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              <Input
-                placeholder="符号 (USDT)"
-                value={coin.symbol}
-                onChange={(e) => updateRate(i, "symbol", e.target.value)}
-                className="h-9 bg-secondary/50 text-sm"
-              />
-              <Input
-                placeholder="名称"
-                value={coin.name}
-                onChange={(e) => updateRate(i, "name", e.target.value)}
-                className="h-9 bg-secondary/50 text-sm"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              <div>
-                <label className="text-xs text-muted-foreground">兑换价 ({coin.currency})</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={coin.buybackRate}
-                  onChange={(e) => updateRate(i, "buybackRate", e.target.value)}
-                  className="h-9 bg-secondary/50 text-sm font-mono-num"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground">货币单位</label>
-                <Input
-                  value={coin.currency}
-                  onChange={(e) => updateRate(i, "currency", e.target.value)}
-                  className="h-9 bg-secondary/50 text-sm"
-                />
-              </div>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => removeCoin(i)} className="text-destructive text-xs">
-              <Trash2 className="w-3 h-3 mr-1" /> 删除
-            </Button>
-          </motion.div>
-        ))}
-      </div>
-
-      <Button variant="outline" onClick={addCoin} className="w-full mt-4 gap-1">
-        <Plus className="w-4 h-4" /> 添加币种
-      </Button>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel p-6 glow-purple">
+        <p className="text-sm font-semibold mb-4">USDT 兑换汇率</p>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground whitespace-nowrap">1 USDT =</span>
+          <Input
+            type="number"
+            step="0.01"
+            value={rate}
+            onChange={(e) => { setRate(parseFloat(e.target.value) || 0); setSaved(false); }}
+            className="h-12 bg-secondary/50 font-mono-num text-xl flex-1"
+          />
+          <span className="text-sm text-muted-foreground">CNY</span>
+        </div>
+      </motion.div>
     </div>
   );
 };
