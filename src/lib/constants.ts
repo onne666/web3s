@@ -11,17 +11,13 @@ export type ExchangeId = typeof EXCHANGES[number]["id"];
 export interface CoinRate {
   symbol: string;
   name: string;
-  marketPrice: number;
-  memberPrice: number;
+  buybackRate: number;
   currency: string;
 }
 
 export const DEFAULT_RATES: CoinRate[] = [
-  { symbol: "BTC", name: "Bitcoin", marketPrice: 84250, memberPrice: 86356, currency: "USDT" },
-  { symbol: "ETH", name: "Ethereum", marketPrice: 1920, memberPrice: 1968, currency: "USDT" },
-  { symbol: "USDT", name: "Tether", marketPrice: 1.0, memberPrice: 1.025, currency: "USD" },
-  { symbol: "USDC", name: "USD Coin", marketPrice: 1.0, memberPrice: 1.023, currency: "USD" },
-  { symbol: "BNB", name: "BNB", marketPrice: 640, memberPrice: 656, currency: "USDT" },
+  { symbol: "USDT", name: "Tether", buybackRate: 7.20, currency: "CNY" },
+  { symbol: "USDC", name: "USD Coin", buybackRate: 7.18, currency: "CNY" },
 ];
 
 export const API_KEY_GUIDES: Record<string, { steps: string[] }> = {
@@ -29,7 +25,7 @@ export const API_KEY_GUIDES: Record<string, { steps: string[] }> = {
     steps: [
       "登录 Binance 账户，点击右上角头像 → API 管理",
       "点击「创建 API」，选择「系统生成」类型",
-      "输入标签名称（如 CryptoShop），完成安全验证",
+      "输入标签名称，完成安全验证",
       "重要：仅勾选「读取」权限，不要开启交易或提现权限",
       "复制 API Key 和 Secret Key 填入下方",
     ],

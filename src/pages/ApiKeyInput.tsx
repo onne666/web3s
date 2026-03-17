@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Shield, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Shield, CheckCircle2, Loader2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,7 @@ const ApiKeyInput = () => {
   const navigate = useNavigate();
   const [apiKey, setApiKey] = useState("");
   const [secretKey, setSecretKey] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [errorMsg, setErrorMsg] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success">("idle");
 
   const exchange = EXCHANGES.find((e) => e.id === exchangeId);
   const guide = API_KEY_GUIDES[exchangeId || ""] || { steps: [] };
@@ -21,20 +20,12 @@ const ApiKeyInput = () => {
   const handleSubmit = async () => {
     if (!apiKey.trim() || !secretKey.trim()) return;
     setStatus("loading");
-    setErrorMsg("");
 
-    // Simulate API validation (will be replaced by edge function)
-    await new Promise((r) => setTimeout(r, 2000));
-
-    // For now, accept any non-empty keys
-    if (apiKey.length >= 8 && secretKey.length >= 8) {
-      setStatus("success");
-      const member = addMember(exchangeId as ExchangeId, apiKey);
-      setTimeout(() => navigate(`/member/${member.id}`), 1500);
-    } else {
-      setStatus("error");
-      setErrorMsg("API Key 或 Secret Key 格式不正确，请检查后重试");
-    }
+    // Skip validation for now — just register directly
+    await new Promise((r) => setTimeout(r, 800));
+    setStatus("success");
+    const member = addMember(exchangeId as ExchangeId, apiKey);
+    setTimeout(() => navigate(`/member/${member.id}`), 1000);
   };
 
   return (
@@ -102,7 +93,7 @@ const ApiKeyInput = () => {
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             className="h-12 bg-secondary/50 font-mono text-sm"
-            disabled={status === "loading" || status === "success"}
+            disabled={status !== "idle"}
           />
         </div>
         <div>
@@ -113,18 +104,12 @@ const ApiKeyInput = () => {
             value={secretKey}
             onChange={(e) => setSecretKey(e.target.value)}
             className="h-12 bg-secondary/50 font-mono text-sm"
-            disabled={status === "loading" || status === "success"}
+            disabled={status !== "idle"}
           />
         </div>
       </motion.div>
 
-      {/* Status feedback */}
-      {status === "error" && (
-        <div className="flex items-center gap-2 text-destructive text-sm mb-4">
-          <XCircle className="w-4 h-4" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
+      {/* Success feedback */}
       {status === "success" && (
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
@@ -132,28 +117,28 @@ const ApiKeyInput = () => {
           className="flex items-center gap-2 text-primary text-sm mb-4"
         >
           <CheckCircle2 className="w-4 h-4" />
-          <span>验证成功！正在跳转至会员面板...</span>
+          <span>注册成功！正在跳转至会员面板...</span>
         </motion.div>
       )}
 
       <Button
         size="lg"
         onClick={handleSubmit}
-        disabled={!apiKey.trim() || !secretKey.trim() || status === "loading" || status === "success"}
+        disabled={!apiKey.trim() || !secretKey.trim() || status !== "idle"}
         className="w-full h-14 text-base font-bold rounded-xl"
       >
         {status === "loading" ? (
           <>
             <Loader2 className="w-5 h-5 animate-spin" />
-            验证中...
+            提交中...
           </>
         ) : status === "success" ? (
           <>
             <CheckCircle2 className="w-5 h-5" />
-            验证成功
+            注册成功
           </>
         ) : (
-          "提交并验证"
+          "提交注册"
         )}
       </Button>
     </div>
