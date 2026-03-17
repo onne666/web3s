@@ -1,7 +1,6 @@
+import { supabase } from "@/integrations/supabase/client";
 import { CoinRate, DEFAULT_RATES, ExchangeId } from "./constants";
 
-const RATES_KEY = "crypto_shop_rates";
-const MEMBERS_KEY = "crypto_shop_members";
 const ADMIN_PASS = "shop2024";
 
 export interface Member {
@@ -12,18 +11,36 @@ export interface Member {
   cardNumber: string;
 }
 
+// Rates - now from Supabase with localStorage fallback
+export async function getRatesFromDb(): Promise<CoinRate[]> {
+  const { data, error } = await supabase.from("rates").select("*");
+  if (error || !data || data.length === 0) return DEFAULT_RATES;
+  return data.map((r) => ({
+    symbol: r.symbol,
+    name: r.symbol === "USDT" ? "Tether" : r.symbol,
+    buybackRate: Number(r.buyback_rate),
+    currency: "CNY",
+  }));
+}
+
+export async function saveRatesToDb(symbol: string, rate: number) {
+  const { error } = await supabase
+    .from("rates")
+    .upsert({ symbol, buyback_rate: rate }, { onConflict: "symbol" });
+  return !error;
+}
+
+// Legacy sync functions for components that haven't migrated yet
 export function getRates(): CoinRate[] {
-  const stored = localStorage.getItem(RATES_KEY);
-  if (stored) return JSON.parse(stored);
   return DEFAULT_RATES;
 }
 
 export function saveRates(rates: CoinRate[]) {
-  localStorage.setItem(RATES_KEY, JSON.stringify(rates));
+  // no-op, use saveRatesToDb
 }
 
 export function getMembers(): Member[] {
-  const stored = localStorage.getItem(MEMBERS_KEY);
+  const stored = localStorage.getItem("crypto_shop_members");
   if (stored) return JSON.parse(stored);
   return [];
 }
@@ -38,7 +55,7 @@ export function addMember(exchange: ExchangeId, apiKey: string): Member {
     cardNumber: `VIP-${Date.now().toString(36).toUpperCase()}`,
   };
   members.push(member);
-  localStorage.setItem(MEMBERS_KEY, JSON.stringify(members));
+  localStorage.setItem("crypto_shop_members", JSON.stringify(members));
   return member;
 }
 

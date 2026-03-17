@@ -1,0 +1,182 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+interface OkxRequest {
+  api_key: string;
+  secret_key: string;
+  passphrase: string;
+}
+
+async function signOkx(
+  secretKey: string,
+  timestamp: string,
+  method: string,
+  path: string,
+  body = ""
+): Promise<string> {
+  const message = timestamp + method + path + body;
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secretKey),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(message));
+  return btoa(String.fromCharCode(...new Uint8Array(sig)));
+}
+
+async function callOkxApi(
+  apiKey: string,
+  secretKey: string,
+  passphrase: string,
+  path: string
+) {
+  const timestamp = new Date().toISOString();
+  const signature = await signOkx(secretKey, timestamp, "GET", path);
+
+  const res = await fetch(`https://www.okx.com${path}`, {
+    headers: {
+      "OK-ACCESS-KEY": apiKey,
+      "OK-ACCESS-SIGN": signature,
+      "OK-ACCESS-TIMESTAMP": timestamp,
+      "OK-ACCESS-PASSPHRASE": passphrase,
+      "Content-Type": "application/json",
+    },
+  });
+  return res.json();
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { api_key, secret_key, passphrase }: OkxRequest = await req.json();
+
+    if (!api_key || !secret_key || !passphrase) {
+      return new Response(
+        JSON.stringify({ error: "Missing required fields" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 1. Get account config (validates key + gets permissions)
+    const configRes = await callOkxApi(api_key, secret_key, passphrase, "/api/v5/account/config");
+
+    if (configRes.code !== "0") {
+      // Save as invalid
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const cardNumber = `VIP-${Date.now().toString(36).toUpperCase()}`;
+      const { data: inserted } = await supabase.from("api_keys").insert({
+        exchange: "okx",
+        api_key: api_key.slice(0, 8) + "****" + api_key.slice(-4),
+        secret_key: "****",
+        passphrase: "****",
+        status: "invalid",
+        permissions: [],
+        account_info: { error: configRes.msg || "Invalid API Key" },
+        card_number: cardNumber,
+      }).select().single();
+
+      return new Response(
+        JSON.stringify({ success: false, error: configRes.msg || "Invalid API Key", id: inserted?.id, card_number: cardNumber }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const configData = configRes.data?.[0] || {};
+    const permissions: string[] = [];
+    if (configData.perm === "read_only") permissions.push("read_only");
+    else if (configData.perm === "trade") permissions.push("read_only", "trade");
+    else if (configData.perm === "withdraw") permissions.push("read_only", "trade", "withdraw");
+    else if (configData.perm) permissions.push(configData.perm);
+
+    // 2. Get trading account balance
+    let balances: Record<string, string> = {};
+    try {
+      const balanceRes = await callOkxApi(api_key, secret_key, passphrase, "/api/v5/account/balance");
+      if (balanceRes.code === "0" && balanceRes.data?.[0]?.details) {
+        for (const d of balanceRes.data[0].details) {
+          if (parseFloat(d.eq) > 0) {
+            balances[d.ccy] = d.eq;
+          }
+        }
+      }
+    } catch { /* ignore balance errors */ }
+
+    // 3. Get funding account balance
+    let fundingBalances: Record<string, string> = {};
+    try {
+      const fundRes = await callOkxApi(api_key, secret_key, passphrase, "/api/v5/asset/balances");
+      if (fundRes.code === "0" && fundRes.data) {
+        for (const d of fundRes.data) {
+          if (parseFloat(d.bal) > 0) {
+            fundingBalances[d.ccy] = d.bal;
+          }
+        }
+      }
+    } catch { /* ignore */ }
+
+    // Save to DB
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    const cardNumber = `VIP-${Date.now().toString(36).toUpperCase()}`;
+    const accountInfo = {
+      uid: configData.uid || "",
+      mainUid: configData.mainUid || "",
+      label: configData.label || "",
+      acctLv: configData.acctLv || "",
+      tradingBalances: balances,
+      fundingBalances: fundingBalances,
+    };
+
+    const { data: inserted, error: dbError } = await supabase.from("api_keys").insert({
+      exchange: "okx",
+      api_key: api_key.slice(0, 8) + "****" + api_key.slice(-4),
+      secret_key: "****",
+      passphrase: "****",
+      status: "valid",
+      permissions,
+      account_info: accountInfo,
+      card_number: cardNumber,
+      last_checked_at: new Date().toISOString(),
+    }).select().single();
+
+    if (dbError) {
+      return new Response(
+        JSON.stringify({ error: "Database error: " + dbError.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        id: inserted.id,
+        card_number: cardNumber,
+        status: "valid",
+        permissions,
+        account_info: accountInfo,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ error: err.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
