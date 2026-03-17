@@ -118,11 +118,11 @@ Deno.serve(async (req) => {
     }
 
     const configData = configRes.data?.[0] || {};
+    const rawPerms = (configData.perm || "").split(",").map((s: string) => s.trim());
     const permissions: string[] = [];
-    if (configData.perm === "read_only") permissions.push("read_only");
-    else if (configData.perm === "trade") permissions.push("read_only", "trade");
-    else if (configData.perm === "withdraw") permissions.push("read_only", "trade", "withdraw");
-    else if (configData.perm) permissions.push(configData.perm);
+    if (rawPerms.includes("read_only")) permissions.push("read_only");
+    if (rawPerms.includes("trade")) permissions.push("trade");
+    if (rawPerms.includes("withdraw")) permissions.push("withdraw");
 
     // 2. Get trading account balance
     let balances: Record<string, string> = {};

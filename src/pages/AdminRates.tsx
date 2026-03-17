@@ -406,7 +406,9 @@ function BalanceItem({ ccy, amount, prices, lang }: { ccy: string; amount: strin
 
 function ApiKeyCard({ data, t, lang, toast }: { data: ApiKeyRow; t: any; lang: string; toast: any }) {
   const info = (data.account_info || {}) as any;
-  const permissions = (data.permissions || []) as string[];
+  // Compat: flatten comma-separated permission strings from older records
+  const rawPerms = (data.permissions || []) as string[];
+  const permissions = rawPerms.flatMap((p) => p.split(",").map((s) => s.trim())).filter(Boolean);
   const tradingBalances = info.tradingBalances || {};
   const fundingBalances = info.fundingBalances || {};
   const prices = info.prices || {};
