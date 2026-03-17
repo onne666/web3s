@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { CoinRate, DEFAULT_RATES, ExchangeId } from "./constants";
 
-const ADMIN_PASS = "shop2024";
+
 
 export interface Member {
   id: string;
