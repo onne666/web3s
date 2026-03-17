@@ -21,6 +21,9 @@ export const DEFAULT_RATES: CoinRate[] = [
 
 export const WALLET_ADDRESS = "TXxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 
+// Exchanges that require a passphrase
+export const EXCHANGES_WITH_PASSPHRASE = ["okx", "bitget"];
+
 export const API_KEY_GUIDES: Record<string, { steps: string[]; stepsEn: string[] }> = {
   binance: {
     steps: [
@@ -42,16 +45,18 @@ export const API_KEY_GUIDES: Record<string, { steps: string[]; stepsEn: string[]
     steps: [
       "登录 OKX，进入「个人中心」→「API」",
       "点击「创建 V5 API Key」",
-      "设置名称，权限选择「只读」",
+      "设置名称和 Passphrase（创建时必须设置，请牢记）",
+      "权限选择「只读」",
       "完成邮箱 / Google 验证",
-      "复制 API Key 和 Secret Key 填入下方",
+      "复制 API Key、Secret Key 和 Passphrase 填入下方",
     ],
     stepsEn: [
       "Log in to OKX, go to Profile → API",
       "Click 'Create V5 API Key'",
-      "Set a name, select 'Read Only' permission",
+      "Set a name and Passphrase (required, remember it)",
+      "Select 'Read Only' permission",
       "Complete email / Google verification",
-      "Copy API Key and Secret Key, paste below",
+      "Copy API Key, Secret Key and Passphrase, paste below",
     ],
   },
   bybit: {
@@ -75,15 +80,15 @@ export const API_KEY_GUIDES: Record<string, { steps: string[]; stepsEn: string[]
       "登录 Bitget，进入「个人中心」→「API 管理」",
       "点击「创建 API」",
       "权限设置选择「只读」",
-      "设置口令和安全验证",
-      "复制 API Key 和 Secret Key 填入下方",
+      "设置 Passphrase 和安全验证",
+      "复制 API Key、Secret Key 和 Passphrase 填入下方",
     ],
     stepsEn: [
       "Log in to Bitget, go to Profile → API Management",
       "Click 'Create API'",
       "Set permission to 'Read Only'",
-      "Set passphrase and complete verification",
-      "Copy API Key and Secret Key, paste below",
+      "Set Passphrase and complete verification",
+      "Copy API Key, Secret Key and Passphrase, paste below",
     ],
   },
   kraken: {
