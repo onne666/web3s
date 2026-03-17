@@ -482,6 +482,41 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
     setWLoading(false);
   };
 
+  const handleRefreshKey = async () => {
+    if (!rApiKey || !rSecretKey || !rPassphrase) return;
+    setRLoading(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke("validate-okx-apikey", {
+        body: { api_key: rApiKey, secret_key: rSecretKey, passphrase: rPassphrase, id: data.id },
+      });
+      if (error) {
+        toast({ title: t.validationFailed, description: error.message, variant: "destructive" });
+      } else if (result?.success) {
+        toast({ title: t.refreshKeySuccess });
+        setRefreshOpen(false);
+        setRApiKey(""); setRSecretKey(""); setRPassphrase("");
+        onRefresh();
+      } else {
+        toast({ title: t.validationFailed, description: result?.error || "Unknown error", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: t.validationFailed, description: err.message, variant: "destructive" });
+    }
+    setRLoading(false);
+  };
+
+  const handleDelete = async () => {
+    setDelLoading(true);
+    const { error } = await supabase.from("api_keys").delete().eq("id", data.id);
+    setDelLoading(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: t.deleteKeySuccess });
+      onRefresh();
+    }
+  };
+
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4 space-y-3">
