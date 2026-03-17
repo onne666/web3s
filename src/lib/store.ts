@@ -59,6 +59,5 @@ export function addMember(exchange: ExchangeId, apiKey: string): Member {
   return member;
 }
 
-export function verifyAdminPassword(password: string): boolean {
-  return password === ADMIN_PASS;
-}
+
+
