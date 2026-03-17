@@ -1,1 +1,4 @@
 project_id = "yxdcewlkigvqfnyxywag"
+
+[functions.validate-okx-apikey]
+verify_jwt = false
