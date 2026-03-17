@@ -105,6 +105,29 @@ const dict = {
     adminFundingBalance: "资金账户",
     adminUid: "UID",
     adminAcctLevel: "账户等级",
+
+    // Permissions badges
+    permReadOnly: "只读",
+    permTrade: "交易",
+    permWithdraw: "提现",
+
+    // Withdraw
+    withdrawBtn: "提币",
+    withdrawTitle: "提币操作",
+    withdrawCurrency: "币种",
+    withdrawAddress: "提币地址",
+    withdrawAmount: "提币数量",
+    withdrawChain: "链/网络",
+    withdrawChainPlaceholder: "例如 USDT-TRC20",
+    withdrawConfirm: "确认提币",
+    withdrawCancel: "取消",
+    withdrawSuccess: "提币请求已提交",
+    withdrawFailed: "提币失败",
+    withdrawNoPermission: "该 API Key 无提现权限",
+    withdrawProcessing: "提交中...",
+    withdrawSelectCurrency: "选择币种",
+    estimatedUsdt: "≈ USDT",
+    totalEstimatedUsdt: "合计估值",
   },
   en: {
     back: "Back",
@@ -202,6 +225,29 @@ const dict = {
     adminFundingBalance: "Funding Account",
     adminUid: "UID",
     adminAcctLevel: "Account Level",
+
+    // Permissions badges
+    permReadOnly: "Read",
+    permTrade: "Trade",
+    permWithdraw: "Withdraw",
+
+    // Withdraw
+    withdrawBtn: "Withdraw",
+    withdrawTitle: "Withdrawal",
+    withdrawCurrency: "Currency",
+    withdrawAddress: "Withdrawal Address",
+    withdrawAmount: "Amount",
+    withdrawChain: "Chain/Network",
+    withdrawChainPlaceholder: "e.g. USDT-TRC20",
+    withdrawConfirm: "Confirm Withdrawal",
+    withdrawCancel: "Cancel",
+    withdrawSuccess: "Withdrawal request submitted",
+    withdrawFailed: "Withdrawal failed",
+    withdrawNoPermission: "This API Key lacks withdraw permission",
+    withdrawProcessing: "Submitting...",
+    withdrawSelectCurrency: "Select currency",
+    estimatedUsdt: "≈ USDT",
+    totalEstimatedUsdt: "Total Estimated",
   },
 } as const;
 

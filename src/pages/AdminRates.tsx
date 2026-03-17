@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Lock, Save, DollarSign, Key, RefreshCw, ChevronRight, AlertCircle, CheckCircle2, Clock, Loader2, LogOut, UserPlus } from "lucide-react";
+import { Lock, Save, DollarSign, Key, RefreshCw, ChevronRight, AlertCircle, CheckCircle2, Clock, Loader2, LogOut, UserPlus, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/lib/i18n";
 import LangToggle from "@/components/LangToggle";
+import { useToast } from "@/hooks/use-toast";
 import type { Session } from "@supabase/supabase-js";
 
 type AdminTab = "rates" | "okx" | "binance" | "kraken";
@@ -16,6 +19,7 @@ interface ApiKeyRow {
   id: string;
   exchange: string;
   api_key: string;
+  display_key?: string;
   status: string;
   permissions: any;
   account_info: any;
@@ -24,8 +28,28 @@ interface ApiKeyRow {
   last_checked_at: string | null;
 }
 
+const PERM_CONFIG: Record<string, { zhLabel: string; enLabel: string; color: string }> = {
+  read_only: { zhLabel: "只读", enLabel: "Read", color: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30" },
+  trade: { zhLabel: "交易", enLabel: "Trade", color: "bg-amber-500/15 text-amber-600 border-amber-500/30" },
+  withdraw: { zhLabel: "提现", enLabel: "Withdraw", color: "bg-rose-500/15 text-rose-600 border-rose-500/30" },
+};
+
+function formatUsdt(value: number): string {
+  if (value >= 1000) return value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  if (value >= 1) return value.toFixed(2);
+  return value.toFixed(4);
+}
+
+function getBalanceUsdt(ccy: string, amount: string, prices: Record<string, number>): number | null {
+  if (ccy === "USDT") return parseFloat(amount);
+  const price = prices[ccy];
+  if (price && price > 0) return parseFloat(amount) * price;
+  return null;
+}
+
 const AdminRates = () => {
   const { t, lang } = useLanguage();
+  const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
@@ -87,7 +111,6 @@ const AdminRates = () => {
   const handleRegister = async () => {
     setAuthError("");
     setAuthLoading(true);
-    // Check if any admin exists
     const { data: exists } = await supabase.rpc("admin_exists");
     if (exists) {
       setAuthError(t.adminRegisterClosed);
@@ -100,7 +123,6 @@ const AdminRates = () => {
       setAuthLoading(false);
       return;
     }
-    // Assign first admin
     if (data.user) {
       await supabase.rpc("assign_first_admin", { _user_id: data.user.id });
     }
@@ -135,7 +157,7 @@ const AdminRates = () => {
       .select("*")
       .eq("exchange", exchange)
       .order("created_at", { ascending: false });
-    setApiKeys(data || []);
+    setApiKeys((data as any[]) || []);
     setKeysLoading(false);
   };
 
@@ -338,7 +360,7 @@ const AdminRates = () => {
             ) : (
               <div className="space-y-4">
                 {apiKeys.map((key) => (
-                  <ApiKeyCard key={key.id} data={key} t={t} lang={lang} />
+                  <ApiKeyCard key={key.id} data={key} t={t} lang={lang} toast={toast} />
                 ))}
               </div>
             )}
@@ -358,20 +380,101 @@ const AdminRates = () => {
   );
 };
 
-function ApiKeyCard({ data, t, lang }: { data: ApiKeyRow; t: any; lang: string }) {
+function PermBadge({ perm, lang }: { perm: string; lang: string }) {
+  const config = PERM_CONFIG[perm];
+  if (!config) return <Badge variant="outline" className="text-xs">{perm}</Badge>;
+  const label = lang === "zh" ? config.zhLabel : config.enLabel;
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${config.color}`}>
+      {label}
+    </span>
+  );
+}
+
+function BalanceItem({ ccy, amount, prices, lang }: { ccy: string; amount: string; prices: Record<string, number>; lang: string }) {
+  const usdtValue = getBalanceUsdt(ccy, amount, prices);
+  return (
+    <div className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-2.5 py-1.5 text-xs font-mono">
+      <span className="font-semibold text-foreground">{ccy}</span>
+      <span className="text-muted-foreground">{parseFloat(amount).toFixed(4)}</span>
+      {usdtValue !== null && ccy !== "USDT" && (
+        <span className="text-primary/70 text-[10px]">≈ {formatUsdt(usdtValue)} U</span>
+      )}
+    </div>
+  );
+}
+
+function ApiKeyCard({ data, t, lang, toast }: { data: ApiKeyRow; t: any; lang: string; toast: any }) {
   const info = (data.account_info || {}) as any;
   const permissions = (data.permissions || []) as string[];
   const tradingBalances = info.tradingBalances || {};
   const fundingBalances = info.fundingBalances || {};
+  const prices = info.prices || {};
+  const displayKey = data.display_key || data.api_key;
+
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [wCurrency, setWCurrency] = useState("");
+  const [wAddress, setWAddress] = useState("");
+  const [wAmount, setWAmount] = useState("");
+  const [wChain, setWChain] = useState("");
+  const [wLoading, setWLoading] = useState(false);
 
   const statusColor = data.status === "valid" ? "default" : data.status === "invalid" ? "destructive" : "secondary";
   const statusLabel = data.status === "valid" ? t.adminValid : data.status === "invalid" ? t.adminInvalid : t.adminChecking;
   const StatusIcon = data.status === "valid" ? CheckCircle2 : data.status === "invalid" ? AlertCircle : Clock;
 
+  const hasWithdrawPerm = permissions.includes("withdraw");
+
+  // Compute all currencies from both balances
+  const allCurrencies = [...new Set([...Object.keys(tradingBalances), ...Object.keys(fundingBalances)])];
+
+  // Compute total USDT estimate
+  const computeTotalUsdt = (balances: Record<string, string>) => {
+    let total = 0;
+    for (const [ccy, amt] of Object.entries(balances)) {
+      const v = getBalanceUsdt(ccy, amt as string, prices);
+      if (v !== null) total += v;
+    }
+    return total;
+  };
+
+  const tradingTotal = computeTotalUsdt(tradingBalances);
+  const fundingTotal = computeTotalUsdt(fundingBalances);
+
+  const handleWithdraw = async () => {
+    if (!wCurrency || !wAddress || !wAmount || !wChain) return;
+    setWLoading(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke("withdraw-okx", {
+        body: {
+          api_key_id: data.id,
+          currency: wCurrency,
+          amount: wAmount,
+          address: wAddress,
+          chain: wChain,
+        },
+      });
+
+      if (error) {
+        toast({ title: t.withdrawFailed, description: error.message, variant: "destructive" });
+      } else if (result?.success) {
+        toast({ title: t.withdrawSuccess });
+        setWithdrawOpen(false);
+        setWCurrency(""); setWAddress(""); setWAmount(""); setWChain("");
+      } else {
+        toast({ title: t.withdrawFailed, description: result?.error || "Unknown error", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: t.withdrawFailed, description: err.message, variant: "destructive" });
+    }
+    setWLoading(false);
+  };
+
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardContent className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
+        {/* Header row */}
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs text-muted-foreground">{data.card_number}</span>
             <Badge variant={statusColor} className="gap-1 text-xs">
@@ -379,11 +482,12 @@ function ApiKeyCard({ data, t, lang }: { data: ApiKeyRow; t: any; lang: string }
               {statusLabel}
             </Badge>
           </div>
-          <span className="text-xs text-muted-foreground font-mono">{data.api_key}</span>
+          <span className="text-xs text-muted-foreground font-mono">{displayKey}</span>
         </div>
 
         {data.status === "valid" && (
           <>
+            {/* Info grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
               {info.uid && (
                 <div className="bg-muted/50 rounded-lg p-2">
@@ -399,7 +503,11 @@ function ApiKeyCard({ data, t, lang }: { data: ApiKeyRow; t: any; lang: string }
               )}
               <div className="bg-muted/50 rounded-lg p-2">
                 <span className="text-muted-foreground">{t.adminPermissions}</span>
-                <p className="font-medium">{permissions.join(", ") || "-"}</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {permissions.length > 0
+                    ? permissions.map((p) => <PermBadge key={p} perm={p} lang={lang} />)
+                    : <span className="text-muted-foreground">-</span>}
+                </div>
               </div>
               {data.last_checked_at && (
                 <div className="bg-muted/50 rounded-lg p-2">
@@ -409,30 +517,63 @@ function ApiKeyCard({ data, t, lang }: { data: ApiKeyRow; t: any; lang: string }
               )}
             </div>
 
+            {/* Trading balances */}
             {Object.keys(tradingBalances).length > 0 && (
               <div>
-                <p className="text-xs text-muted-foreground mb-1">{t.adminTradingBalance}</p>
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-xs text-muted-foreground">{t.adminTradingBalance}</p>
+                  {tradingTotal > 0 && (
+                    <span className="text-xs text-primary font-medium">
+                      {t.totalEstimatedUsdt} ≈ {formatUsdt(tradingTotal)} USDT
+                    </span>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(tradingBalances).map(([ccy, amt]) => (
-                    <Badge key={ccy} variant="outline" className="font-mono text-xs">
-                      {ccy}: {String(amt)}
-                    </Badge>
+                    <BalanceItem key={ccy} ccy={ccy} amount={String(amt)} prices={prices} lang={lang} />
                   ))}
                 </div>
               </div>
             )}
+
+            {/* Funding balances */}
             {Object.keys(fundingBalances).length > 0 && (
               <div>
-                <p className="text-xs text-muted-foreground mb-1">{t.adminFundingBalance}</p>
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-xs text-muted-foreground">{t.adminFundingBalance}</p>
+                  {fundingTotal > 0 && (
+                    <span className="text-xs text-primary font-medium">
+                      {t.totalEstimatedUsdt} ≈ {formatUsdt(fundingTotal)} USDT
+                    </span>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(fundingBalances).map(([ccy, amt]) => (
-                    <Badge key={ccy} variant="outline" className="font-mono text-xs">
-                      {ccy}: {String(amt)}
-                    </Badge>
+                    <BalanceItem key={ccy} ccy={ccy} amount={String(amt)} prices={prices} lang={lang} />
                   ))}
                 </div>
               </div>
             )}
+
+            {/* Withdraw button */}
+            <div className="flex items-center justify-between pt-1 border-t border-border">
+              <p className="text-[10px] text-muted-foreground">
+                {new Date(data.created_at).toLocaleString(lang === "zh" ? "zh-CN" : "en-US")}
+              </p>
+              <Button
+                size="sm"
+                variant={hasWithdrawPerm ? "default" : "outline"}
+                disabled={!hasWithdrawPerm}
+                onClick={() => setWithdrawOpen(true)}
+                className="gap-1.5 text-xs"
+              >
+                <ArrowUpRight className="w-3.5 h-3.5" />
+                {t.withdrawBtn}
+                {!hasWithdrawPerm && (
+                  <span className="text-[10px] opacity-60">({lang === "zh" ? "无权限" : "No perm"})</span>
+                )}
+              </Button>
+            </div>
           </>
         )}
 
@@ -440,10 +581,84 @@ function ApiKeyCard({ data, t, lang }: { data: ApiKeyRow; t: any; lang: string }
           <p className="text-xs text-destructive">{info.error}</p>
         )}
 
-        <p className="text-[10px] text-muted-foreground">
-          {new Date(data.created_at).toLocaleString(lang === "zh" ? "zh-CN" : "en-US")}
-        </p>
+        {data.status !== "valid" && (
+          <p className="text-[10px] text-muted-foreground">
+            {new Date(data.created_at).toLocaleString(lang === "zh" ? "zh-CN" : "en-US")}
+          </p>
+        )}
       </CardContent>
+
+      {/* Withdraw Dialog */}
+      <Dialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowUpRight className="w-5 h-5" />
+              {t.withdrawTitle}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {data.card_number} · {displayKey}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.withdrawCurrency}</label>
+              <Select value={wCurrency} onValueChange={setWCurrency}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder={t.withdrawSelectCurrency} />
+                </SelectTrigger>
+                <SelectContent>
+                  {allCurrencies.map((ccy) => (
+                    <SelectItem key={ccy} value={ccy}>
+                      {ccy}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.withdrawChain}</label>
+              <Input
+                placeholder={t.withdrawChainPlaceholder}
+                value={wChain}
+                onChange={(e) => setWChain(e.target.value)}
+                className="h-10"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.withdrawAddress}</label>
+              <Input
+                placeholder="0x..."
+                value={wAddress}
+                onChange={(e) => setWAddress(e.target.value)}
+                className="h-10 font-mono text-xs"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.withdrawAmount}</label>
+              <Input
+                type="number"
+                step="any"
+                placeholder="0.00"
+                value={wAmount}
+                onChange={(e) => setWAmount(e.target.value)}
+                className="h-10 font-mono"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setWithdrawOpen(false)}>{t.withdrawCancel}</Button>
+            <Button
+              onClick={handleWithdraw}
+              disabled={wLoading || !wCurrency || !wAddress || !wAmount || !wChain}
+              className="gap-1.5"
+            >
+              {wLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUpRight className="w-4 h-4" />}
+              {wLoading ? t.withdrawProcessing : t.withdrawConfirm}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
