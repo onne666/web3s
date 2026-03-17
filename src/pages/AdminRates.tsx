@@ -405,9 +405,8 @@ function BalanceItem({ ccy, amount, prices, lang }: { ccy: string; amount: strin
   );
 }
 
-function ApiKeyCard({ data, t, lang, toast }: { data: ApiKeyRow; t: any; lang: string; toast: any }) {
+function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: any; lang: string; toast: any; onRefresh: () => void }) {
   const info = (data.account_info || {}) as any;
-  // Compat: flatten comma-separated permission strings from older records
   const rawPerms = (data.permissions || []) as string[];
   const permissions = rawPerms.flatMap((p) => p.split(",").map((s) => s.trim())).filter(Boolean);
   const tradingBalances = info.tradingBalances || {};
@@ -421,6 +420,16 @@ function ApiKeyCard({ data, t, lang, toast }: { data: ApiKeyRow; t: any; lang: s
   const [wAmount, setWAmount] = useState("");
   const [wChain, setWChain] = useState("");
   const [wLoading, setWLoading] = useState(false);
+
+  // Refresh key state
+  const [refreshOpen, setRefreshOpen] = useState(false);
+  const [rApiKey, setRApiKey] = useState("");
+  const [rSecretKey, setRSecretKey] = useState("");
+  const [rPassphrase, setRPassphrase] = useState("");
+  const [rLoading, setRLoading] = useState(false);
+
+  // Delete state
+  const [delLoading, setDelLoading] = useState(false);
 
   const statusColor = data.status === "valid" ? "default" : data.status === "invalid" ? "destructive" : "secondary";
   const statusLabel = data.status === "valid" ? t.adminValid : data.status === "invalid" ? t.adminInvalid : t.adminChecking;
