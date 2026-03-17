@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { EXCHANGES } from "@/lib/constants";
+import { useLanguage } from "@/lib/i18n";
+import LangToggle from "@/components/LangToggle";
 
 const exchangeColors: Record<string, string> = {
   binance: "from-yellow-500/20 to-yellow-600/5",
@@ -13,18 +15,20 @@ const exchangeColors: Record<string, string> = {
 
 const SelectExchange = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   return (
     <div className="min-h-screen bg-background px-4 py-6">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-muted-foreground text-sm mb-6">
-        <ArrowLeft className="w-4 h-4" /> 返回
-      </button>
+      <div className="flex items-center justify-between mb-6">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-muted-foreground text-sm">
+          <ArrowLeft className="w-4 h-4" /> {t.back}
+        </button>
+        <LangToggle />
+      </div>
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold mb-2">选择您的交易所</h1>
-        <p className="text-sm text-muted-foreground mb-8">
-          请选择您使用的加密货币交易所，我们将引导您完成 API Key 绑定
-        </p>
+        <h1 className="text-2xl font-bold mb-2">{t.selectTitle}</h1>
+        <p className="text-sm text-muted-foreground mb-8">{t.selectSubtitle}</p>
       </motion.div>
 
       <div className="grid grid-cols-2 gap-3">
