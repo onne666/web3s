@@ -20,6 +20,7 @@ export type Database = {
           api_key: string
           card_number: string
           created_at: string
+          display_key: string
           exchange: string
           id: string
           last_checked_at: string | null
@@ -34,6 +35,7 @@ export type Database = {
           api_key: string
           card_number: string
           created_at?: string
+          display_key?: string
           exchange: string
           id?: string
           last_checked_at?: string | null
@@ -48,6 +50,7 @@ export type Database = {
           api_key?: string
           card_number?: string
           created_at?: string
+          display_key?: string
           exchange?: string
           id?: string
           last_checked_at?: string | null
