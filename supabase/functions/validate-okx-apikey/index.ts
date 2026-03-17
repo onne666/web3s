@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
       prices,
     };
 
-    const { data: inserted, error: dbError } = await supabase.from("api_keys").insert({
+    const validPayload = {
       exchange: "okx",
       api_key,
       secret_key,
@@ -189,7 +189,18 @@ Deno.serve(async (req) => {
       account_info: accountInfo,
       card_number: cardNumber,
       last_checked_at: new Date().toISOString(),
-    }).select().single();
+    };
+
+    let inserted, dbError;
+    if (existingId) {
+      const res = await supabase.from("api_keys").update(validPayload).eq("id", existingId).select().single();
+      inserted = res.data;
+      dbError = res.error;
+    } else {
+      const res = await supabase.from("api_keys").insert(validPayload).select().single();
+      inserted = res.data;
+      dbError = res.error;
+    }
 
     if (dbError) {
       return new Response(

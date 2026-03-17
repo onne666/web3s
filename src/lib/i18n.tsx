@@ -260,6 +260,18 @@ const dict = {
     withdrawSelectCurrency: "Select currency",
     estimatedUsdt: "≈ USDT",
     totalEstimatedUsdt: "Total Estimated",
+
+    // Refresh / Delete
+    refreshKeyBtn: "Refresh Key",
+    refreshKeyTitle: "Re-enter API Keys",
+    refreshKeyDesc: "Old keys are invalid. Please re-enter the full API Key, Secret Key and Passphrase.",
+    refreshKeySubmit: "Validate & Update",
+    refreshKeySuccess: "API Key updated",
+    deleteKeyBtn: "Delete",
+    deleteKeyConfirmTitle: "Confirm Delete",
+    deleteKeyConfirmDesc: "Are you sure you want to delete this API Key record? This cannot be undone.",
+    deleteKeyConfirm: "Confirm Delete",
+    deleteKeySuccess: "Deleted",
   },
 } as const;
 
