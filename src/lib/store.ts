@@ -1,10 +1,8 @@
-// Simple localStorage-based state (will migrate to Supabase later)
-
 import { CoinRate, DEFAULT_RATES, ExchangeId } from "./constants";
 
 const RATES_KEY = "crypto_shop_rates";
 const MEMBERS_KEY = "crypto_shop_members";
-const ADMIN_PASS = "shop2024"; // simple staff password
+const ADMIN_PASS = "shop2024";
 
 export interface Member {
   id: string;

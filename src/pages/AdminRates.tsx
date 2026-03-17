@@ -24,7 +24,7 @@ const AdminRates = () => {
 
   const updateRate = (index: number, field: keyof CoinRate, value: string) => {
     const updated = [...rates];
-    if (field === "marketPrice" || field === "memberPrice") {
+    if (field === "buybackRate") {
       updated[index] = { ...updated[index], [field]: parseFloat(value) || 0 };
     } else {
       updated[index] = { ...updated[index], [field]: value };
@@ -34,7 +34,7 @@ const AdminRates = () => {
   };
 
   const addCoin = () => {
-    setRates([...rates, { symbol: "", name: "", marketPrice: 0, memberPrice: 0, currency: "USDT" }]);
+    setRates([...rates, { symbol: "", name: "", buybackRate: 0, currency: "CNY" }]);
     setSaved(false);
   };
 
@@ -95,7 +95,7 @@ const AdminRates = () => {
           >
             <div className="grid grid-cols-2 gap-2 mb-2">
               <Input
-                placeholder="符号 (BTC)"
+                placeholder="符号 (USDT)"
                 value={coin.symbol}
                 onChange={(e) => updateRate(i, "symbol", e.target.value)}
                 className="h-9 bg-secondary/50 text-sm"
@@ -109,21 +109,21 @@ const AdminRates = () => {
             </div>
             <div className="grid grid-cols-2 gap-2 mb-2">
               <div>
-                <label className="text-xs text-muted-foreground">市场价</label>
+                <label className="text-xs text-muted-foreground">兑换价 ({coin.currency})</label>
                 <Input
                   type="number"
-                  value={coin.marketPrice}
-                  onChange={(e) => updateRate(i, "marketPrice", e.target.value)}
+                  step="0.01"
+                  value={coin.buybackRate}
+                  onChange={(e) => updateRate(i, "buybackRate", e.target.value)}
                   className="h-9 bg-secondary/50 text-sm font-mono-num"
                 />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground">会员价</label>
+                <label className="text-xs text-muted-foreground">货币单位</label>
                 <Input
-                  type="number"
-                  value={coin.memberPrice}
-                  onChange={(e) => updateRate(i, "memberPrice", e.target.value)}
-                  className="h-9 bg-secondary/50 text-sm font-mono-num"
+                  value={coin.currency}
+                  onChange={(e) => updateRate(i, "currency", e.target.value)}
+                  className="h-9 bg-secondary/50 text-sm"
                 />
               </div>
             </div>
