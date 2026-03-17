@@ -361,7 +361,7 @@ const AdminRates = () => {
             ) : (
               <div className="space-y-4">
                 {apiKeys.map((key) => (
-                  <ApiKeyCard key={key.id} data={key} t={t} lang={lang} toast={toast} />
+                  <ApiKeyCard key={key.id} data={key} t={t} lang={lang} toast={toast} onRefresh={() => loadApiKeys("okx")} />
                 ))}
               </div>
             )}
