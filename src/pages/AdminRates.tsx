@@ -730,6 +730,42 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Refresh Key Dialog */}
+      <Dialog open={refreshOpen} onOpenChange={setRefreshOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5" />
+              {t.refreshKeyTitle}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {t.refreshKeyDesc}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.apiKeyLabel}</label>
+              <Input value={rApiKey} onChange={(e) => setRApiKey(e.target.value)} placeholder={t.apiKeyPlaceholder} className="h-10 font-mono text-xs" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.secretKeyLabel}</label>
+              <Input value={rSecretKey} onChange={(e) => setRSecretKey(e.target.value)} placeholder={t.secretKeyPlaceholder} className="h-10 font-mono text-xs" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.passphraseLabel}</label>
+              <Input value={rPassphrase} onChange={(e) => setRPassphrase(e.target.value)} placeholder={t.passphrasePlaceholder} className="h-10 font-mono text-xs" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setRefreshOpen(false)}>{t.withdrawCancel}</Button>
+            <Button onClick={handleRefreshKey} disabled={rLoading || !rApiKey || !rSecretKey || !rPassphrase} className="gap-1.5">
+              {rLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+              {rLoading ? t.submitting : t.refreshKeySubmit}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
