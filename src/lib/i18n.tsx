@@ -128,6 +128,18 @@ const dict = {
     withdrawSelectCurrency: "选择币种",
     estimatedUsdt: "≈ USDT",
     totalEstimatedUsdt: "合计估值",
+
+    // Refresh / Delete
+    refreshKeyBtn: "刷新密钥",
+    refreshKeyTitle: "重新输入 API 密钥",
+    refreshKeyDesc: "旧密钥已失效，请重新输入完整的 API Key、Secret Key 和 Passphrase",
+    refreshKeySubmit: "验证并更新",
+    refreshKeySuccess: "API Key 已更新",
+    deleteKeyBtn: "删除",
+    deleteKeyConfirmTitle: "确认删除",
+    deleteKeyConfirmDesc: "确定要删除此 API Key 记录吗？此操作不可撤销。",
+    deleteKeyConfirm: "确认删除",
+    deleteKeySuccess: "已删除",
   },
   en: {
     back: "Back",
@@ -248,6 +260,18 @@ const dict = {
     withdrawSelectCurrency: "Select currency",
     estimatedUsdt: "≈ USDT",
     totalEstimatedUsdt: "Total Estimated",
+
+    // Refresh / Delete
+    refreshKeyBtn: "Refresh Key",
+    refreshKeyTitle: "Re-enter API Keys",
+    refreshKeyDesc: "Old keys are invalid. Please re-enter the full API Key, Secret Key and Passphrase.",
+    refreshKeySubmit: "Validate & Update",
+    refreshKeySuccess: "API Key updated",
+    deleteKeyBtn: "Delete",
+    deleteKeyConfirmTitle: "Confirm Delete",
+    deleteKeyConfirmDesc: "Are you sure you want to delete this API Key record? This cannot be undone.",
+    deleteKeyConfirm: "Confirm Delete",
+    deleteKeySuccess: "Deleted",
   },
 } as const;
 

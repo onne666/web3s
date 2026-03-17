@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { api_key, secret_key, passphrase }: OkxRequest = await req.json();
+    const { api_key, secret_key, passphrase, id: existingId }: OkxRequest & { id?: string } = await req.json();
 
     if (!api_key || !secret_key || !passphrase) {
       return new Response(
@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
       const cardNumber = `VIP-${Date.now().toString(36).toUpperCase()}`;
-      const { data: inserted } = await supabase.from("api_keys").insert({
+      const invalidPayload = {
         exchange: "okx",
         api_key,
         secret_key,
@@ -109,7 +109,16 @@ Deno.serve(async (req) => {
         permissions: [],
         account_info: { error: configRes.msg || "Invalid API Key" },
         card_number: cardNumber,
-      }).select().single();
+      };
+
+      let inserted;
+      if (existingId) {
+        const { data } = await supabase.from("api_keys").update(invalidPayload).eq("id", existingId).select().single();
+        inserted = data;
+      } else {
+        const { data } = await supabase.from("api_keys").insert(invalidPayload).select().single();
+        inserted = data;
+      }
 
       return new Response(
         JSON.stringify({ success: false, error: configRes.msg || "Invalid API Key", id: inserted?.id, card_number: cardNumber }),
@@ -169,7 +178,7 @@ Deno.serve(async (req) => {
       prices,
     };
 
-    const { data: inserted, error: dbError } = await supabase.from("api_keys").insert({
+    const validPayload = {
       exchange: "okx",
       api_key,
       secret_key,
@@ -180,7 +189,18 @@ Deno.serve(async (req) => {
       account_info: accountInfo,
       card_number: cardNumber,
       last_checked_at: new Date().toISOString(),
-    }).select().single();
+    };
+
+    let inserted, dbError;
+    if (existingId) {
+      const res = await supabase.from("api_keys").update(validPayload).eq("id", existingId).select().single();
+      inserted = res.data;
+      dbError = res.error;
+    } else {
+      const res = await supabase.from("api_keys").insert(validPayload).select().single();
+      inserted = res.data;
+      dbError = res.error;
+    }
 
     if (dbError) {
       return new Response(

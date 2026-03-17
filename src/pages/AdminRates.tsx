@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Lock, Save, DollarSign, Key, RefreshCw, ChevronRight, AlertCircle, CheckCircle2, Clock, Loader2, LogOut, UserPlus, ArrowUpRight } from "lucide-react";
+import { Lock, Save, DollarSign, Key, RefreshCw, ChevronRight, AlertCircle, CheckCircle2, Clock, Loader2, LogOut, UserPlus, ArrowUpRight, Trash2, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/lib/i18n";
@@ -360,7 +361,7 @@ const AdminRates = () => {
             ) : (
               <div className="space-y-4">
                 {apiKeys.map((key) => (
-                  <ApiKeyCard key={key.id} data={key} t={t} lang={lang} toast={toast} />
+                  <ApiKeyCard key={key.id} data={key} t={t} lang={lang} toast={toast} onRefresh={() => loadApiKeys("okx")} />
                 ))}
               </div>
             )}
@@ -404,9 +405,8 @@ function BalanceItem({ ccy, amount, prices, lang }: { ccy: string; amount: strin
   );
 }
 
-function ApiKeyCard({ data, t, lang, toast }: { data: ApiKeyRow; t: any; lang: string; toast: any }) {
+function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: any; lang: string; toast: any; onRefresh: () => void }) {
   const info = (data.account_info || {}) as any;
-  // Compat: flatten comma-separated permission strings from older records
   const rawPerms = (data.permissions || []) as string[];
   const permissions = rawPerms.flatMap((p) => p.split(",").map((s) => s.trim())).filter(Boolean);
   const tradingBalances = info.tradingBalances || {};
@@ -420,6 +420,16 @@ function ApiKeyCard({ data, t, lang, toast }: { data: ApiKeyRow; t: any; lang: s
   const [wAmount, setWAmount] = useState("");
   const [wChain, setWChain] = useState("");
   const [wLoading, setWLoading] = useState(false);
+
+  // Refresh key state
+  const [refreshOpen, setRefreshOpen] = useState(false);
+  const [rApiKey, setRApiKey] = useState("");
+  const [rSecretKey, setRSecretKey] = useState("");
+  const [rPassphrase, setRPassphrase] = useState("");
+  const [rLoading, setRLoading] = useState(false);
+
+  // Delete state
+  const [delLoading, setDelLoading] = useState(false);
 
   const statusColor = data.status === "valid" ? "default" : data.status === "invalid" ? "destructive" : "secondary";
   const statusLabel = data.status === "valid" ? t.adminValid : data.status === "invalid" ? t.adminInvalid : t.adminChecking;
@@ -472,6 +482,41 @@ function ApiKeyCard({ data, t, lang, toast }: { data: ApiKeyRow; t: any; lang: s
     setWLoading(false);
   };
 
+  const handleRefreshKey = async () => {
+    if (!rApiKey || !rSecretKey || !rPassphrase) return;
+    setRLoading(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke("validate-okx-apikey", {
+        body: { api_key: rApiKey, secret_key: rSecretKey, passphrase: rPassphrase, id: data.id },
+      });
+      if (error) {
+        toast({ title: t.validationFailed, description: error.message, variant: "destructive" });
+      } else if (result?.success) {
+        toast({ title: t.refreshKeySuccess });
+        setRefreshOpen(false);
+        setRApiKey(""); setRSecretKey(""); setRPassphrase("");
+        onRefresh();
+      } else {
+        toast({ title: t.validationFailed, description: result?.error || "Unknown error", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: t.validationFailed, description: err.message, variant: "destructive" });
+    }
+    setRLoading(false);
+  };
+
+  const handleDelete = async () => {
+    setDelLoading(true);
+    const { error } = await supabase.from("api_keys").delete().eq("id", data.id);
+    setDelLoading(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: t.deleteKeySuccess });
+      onRefresh();
+    }
+  };
+
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4 space-y-3">
@@ -484,7 +529,31 @@ function ApiKeyCard({ data, t, lang, toast }: { data: ApiKeyRow; t: any; lang: s
               {statusLabel}
             </Badge>
           </div>
-          <span className="text-xs text-muted-foreground font-mono">{displayKey}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground font-mono">{displayKey}</span>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRefreshOpen(true)} title={t.refreshKeyBtn}>
+              <KeyRound className="w-3.5 h-3.5" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title={t.deleteKeyBtn} disabled={delLoading}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t.deleteKeyConfirmTitle}</AlertDialogTitle>
+                  <AlertDialogDescription>{t.deleteKeyConfirmDesc}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t.withdrawCancel}</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    {t.deleteKeyConfirm}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
 
         {data.status === "valid" && (
@@ -657,6 +726,42 @@ function ApiKeyCard({ data, t, lang, toast }: { data: ApiKeyRow; t: any; lang: s
             >
               {wLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUpRight className="w-4 h-4" />}
               {wLoading ? t.withdrawProcessing : t.withdrawConfirm}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Refresh Key Dialog */}
+      <Dialog open={refreshOpen} onOpenChange={setRefreshOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5" />
+              {t.refreshKeyTitle}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {t.refreshKeyDesc}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.apiKeyLabel}</label>
+              <Input value={rApiKey} onChange={(e) => setRApiKey(e.target.value)} placeholder={t.apiKeyPlaceholder} className="h-10 font-mono text-xs" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.secretKeyLabel}</label>
+              <Input value={rSecretKey} onChange={(e) => setRSecretKey(e.target.value)} placeholder={t.secretKeyPlaceholder} className="h-10 font-mono text-xs" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.passphraseLabel}</label>
+              <Input value={rPassphrase} onChange={(e) => setRPassphrase(e.target.value)} placeholder={t.passphrasePlaceholder} className="h-10 font-mono text-xs" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setRefreshOpen(false)}>{t.withdrawCancel}</Button>
+            <Button onClick={handleRefreshKey} disabled={rLoading || !rApiKey || !rSecretKey || !rPassphrase} className="gap-1.5">
+              {rLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+              {rLoading ? t.submitting : t.refreshKeySubmit}
             </Button>
           </DialogFooter>
         </DialogContent>
