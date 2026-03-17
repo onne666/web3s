@@ -95,8 +95,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check withdraw permission
-    const perms = (keyRow.permissions || []) as string[];
+    // Check withdraw permission (handle comma-separated legacy format)
+    const perms = ((keyRow.permissions || []) as string[])
+      .flatMap(p => p.split(",").map(s => s.trim()));
     if (!perms.includes("withdraw")) {
       return new Response(
         JSON.stringify({ error: "This API Key does not have withdraw permission" }),
