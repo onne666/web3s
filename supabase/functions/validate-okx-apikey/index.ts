@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { api_key, secret_key, passphrase }: OkxRequest = await req.json();
+    const { api_key, secret_key, passphrase, id: existingId }: OkxRequest & { id?: string } = await req.json();
 
     if (!api_key || !secret_key || !passphrase) {
       return new Response(
