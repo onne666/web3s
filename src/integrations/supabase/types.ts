@@ -14,7 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      api_keys: {
+        Row: {
+          account_info: Json | null
+          api_key: string
+          card_number: string
+          created_at: string
+          exchange: string
+          id: string
+          last_checked_at: string | null
+          passphrase: string | null
+          permissions: Json | null
+          secret_key: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_info?: Json | null
+          api_key: string
+          card_number: string
+          created_at?: string
+          exchange: string
+          id?: string
+          last_checked_at?: string | null
+          passphrase?: string | null
+          permissions?: Json | null
+          secret_key: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_info?: Json | null
+          api_key?: string
+          card_number?: string
+          created_at?: string
+          exchange?: string
+          id?: string
+          last_checked_at?: string | null
+          passphrase?: string | null
+          permissions?: Json | null
+          secret_key?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rates: {
+        Row: {
+          buyback_rate: number
+          created_at: string
+          id: string
+          symbol: string
+          updated_at: string
+        }
+        Insert: {
+          buyback_rate?: number
+          created_at?: string
+          id?: string
+          symbol: string
+          updated_at?: string
+        }
+        Update: {
+          buyback_rate?: number
+          created_at?: string
+          id?: string
+          symbol?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
