@@ -145,7 +145,7 @@ const dict = {
   },
 } as const;
 
-type Dict = typeof dict.zh;
+type Dict = Record<keyof typeof dict.zh, string>;
 
 interface LanguageContextType {
   lang: Lang;
