@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { CoinRate, DEFAULT_RATES, ExchangeId } from "./constants";
 
-const ADMIN_PASS = "shop2024";
+
 
 export interface Member {
   id: string;
@@ -59,6 +59,5 @@ export function addMember(exchange: ExchangeId, apiKey: string): Member {
   return member;
 }
 
-export function verifyAdminPassword(password: string): boolean {
-  return password === ADMIN_PASS;
-}
+
+

@@ -1,15 +1,14 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Lock, Save, DollarSign, Key, RefreshCw, ChevronRight, AlertCircle, CheckCircle2, Clock, Loader2 } from "lucide-react";
+import { Lock, Save, DollarSign, Key, RefreshCw, ChevronRight, AlertCircle, CheckCircle2, Clock, Loader2, LogOut, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { verifyAdminPassword } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/lib/i18n";
 import LangToggle from "@/components/LangToggle";
+import type { Session } from "@supabase/supabase-js";
 
 type AdminTab = "rates" | "okx" | "binance" | "kraken";
 
@@ -27,9 +26,13 @@ interface ApiKeyRow {
 
 const AdminRates = () => {
   const { t, lang } = useLanguage();
-  const [authenticated, setAuthenticated] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loginMode, setLoginMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [passError, setPassError] = useState(false);
+  const [authError, setAuthError] = useState("");
   const [activeTab, setActiveTab] = useState<AdminTab>("rates");
 
   // Rate state
@@ -41,29 +44,89 @@ const AdminRates = () => {
   const [apiKeys, setApiKeys] = useState<ApiKeyRow[]>([]);
   const [keysLoading, setKeysLoading] = useState(false);
 
-  const handleLogin = () => {
-    if (verifyAdminPassword(password)) {
-      setAuthenticated(true);
-      setPassError(false);
-    } else {
-      setPassError(true);
+  // Auth state listener
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session?.user) {
+        checkAdminRole(session.user.id);
+      } else {
+        setIsAdmin(false);
+        setAuthLoading(false);
+      }
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        checkAdminRole(session.user.id);
+      } else {
+        setAuthLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const checkAdminRole = async (userId: string) => {
+    const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    setIsAdmin(!!data);
+    setAuthLoading(false);
+  };
+
+  const handleLogin = async () => {
+    setAuthError("");
+    setAuthLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setAuthError(error.message);
+      setAuthLoading(false);
     }
+  };
+
+  const handleRegister = async () => {
+    setAuthError("");
+    setAuthLoading(true);
+    // Check if any admin exists
+    const { data: exists } = await supabase.rpc("admin_exists");
+    if (exists) {
+      setAuthError(t.adminRegisterClosed);
+      setAuthLoading(false);
+      return;
+    }
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) {
+      setAuthError(error.message);
+      setAuthLoading(false);
+      return;
+    }
+    // Assign first admin
+    if (data.user) {
+      await supabase.rpc("assign_first_admin", { _user_id: data.user.id });
+    }
+    setAuthLoading(false);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setIsAdmin(false);
   };
 
   // Load rate from DB
   useEffect(() => {
-    if (!authenticated) return;
+    if (!isAdmin) return;
     (async () => {
       const { data } = await supabase.from("rates").select("*").eq("symbol", "USDT").single();
       if (data) setRate(Number(data.buyback_rate));
     })();
-  }, [authenticated]);
+  }, [isAdmin]);
 
   // Load API keys
   useEffect(() => {
-    if (!authenticated || (activeTab !== "okx" && activeTab !== "binance" && activeTab !== "kraken")) return;
+    if (!isAdmin || (activeTab !== "okx" && activeTab !== "binance" && activeTab !== "kraken")) return;
     loadApiKeys(activeTab);
-  }, [authenticated, activeTab]);
+  }, [isAdmin, activeTab]);
 
   const loadApiKeys = async (exchange: string) => {
     setKeysLoading(true);
@@ -88,7 +151,17 @@ const AdminRates = () => {
     }
   };
 
-  if (!authenticated) {
+  // Loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Not authenticated or not admin
+  if (!session || !isAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
@@ -98,17 +171,44 @@ const AdminRates = () => {
               <Lock className="w-6 h-6 text-primary" />
             </div>
             <h1 className="text-xl font-bold mb-1">{t.adminTitle}</h1>
-            <p className="text-sm text-muted-foreground mb-6">{t.adminSubtitle}</p>
+            <p className="text-sm text-muted-foreground mb-6">
+              {loginMode === "login" ? t.adminSubtitle : t.adminRegisterHint}
+            </p>
+            <Input
+              type="email"
+              placeholder={t.adminEmailPlaceholder}
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setAuthError(""); }}
+              className="h-12 bg-secondary/50 mb-3"
+            />
             <Input
               type="password"
               placeholder={t.adminPasswordPlaceholder}
               value={password}
-              onChange={(e) => { setPassword(e.target.value); setPassError(false); }}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+              onChange={(e) => { setPassword(e.target.value); setAuthError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && (loginMode === "login" ? handleLogin() : handleRegister())}
               className="h-12 bg-secondary/50 mb-3"
             />
-            {passError && <p className="text-destructive text-xs mb-3">{t.passwordError}</p>}
-            <Button onClick={handleLogin} className="w-full h-12 font-bold">{t.enterAdmin}</Button>
+            {authError && <p className="text-destructive text-xs mb-3">{authError}</p>}
+            {session && !isAdmin && <p className="text-destructive text-xs mb-3">{t.adminNotAdmin}</p>}
+            {loginMode === "login" ? (
+              <>
+                <Button onClick={handleLogin} className="w-full h-12 font-bold">{t.enterAdmin}</Button>
+                <button onClick={() => setLoginMode("register")} className="text-xs text-muted-foreground mt-3 hover:text-primary transition-colors">
+                  {t.adminSwitchRegister}
+                </button>
+              </>
+            ) : (
+              <>
+                <Button onClick={handleRegister} className="w-full h-12 font-bold gap-2">
+                  <UserPlus className="w-4 h-4" />
+                  {t.adminRegister}
+                </Button>
+                <button onClick={() => setLoginMode("login")} className="text-xs text-muted-foreground mt-3 hover:text-primary transition-colors">
+                  {t.adminSwitchLogin}
+                </button>
+              </>
+            )}
           </div>
         </motion.div>
       </div>
@@ -125,11 +225,11 @@ const AdminRates = () => {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
-      <aside className="w-56 shrink-0 border-r border-border bg-card min-h-screen p-4 hidden md:block">
+      <aside className="w-56 shrink-0 border-r border-border bg-card min-h-screen p-4 hidden md:flex md:flex-col">
         <div className="flex items-center gap-2 mb-6">
           <span className="text-lg font-bold text-primary">CryptoShop</span>
         </div>
-        <nav className="space-y-1">
+        <nav className="space-y-1 flex-1">
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -150,6 +250,13 @@ const AdminRates = () => {
             </button>
           ))}
         </nav>
+        <div className="border-t border-border pt-3 mt-3">
+          <p className="text-[10px] text-muted-foreground truncate mb-2">{session.user.email}</p>
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="w-full justify-start gap-2 text-muted-foreground">
+            <LogOut className="w-3.5 h-3.5" />
+            {t.adminLogout}
+          </Button>
+        </div>
       </aside>
 
       {/* Mobile tabs */}
@@ -172,7 +279,12 @@ const AdminRates = () => {
       <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6 overflow-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-bold">{menuItems.find(m => m.id === activeTab)?.label}</h1>
-          <LangToggle />
+          <div className="flex items-center gap-2">
+            <LangToggle />
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="md:hidden">
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Rate Management */}
@@ -259,7 +371,6 @@ function ApiKeyCard({ data, t, lang }: { data: ApiKeyRow; t: any; lang: string }
   return (
     <Card>
       <CardContent className="p-4 space-y-3">
-        {/* Header row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs text-muted-foreground">{data.card_number}</span>
@@ -271,7 +382,6 @@ function ApiKeyCard({ data, t, lang }: { data: ApiKeyRow; t: any; lang: string }
           <span className="text-xs text-muted-foreground font-mono">{data.api_key}</span>
         </div>
 
-        {/* Account info */}
         {data.status === "valid" && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
@@ -299,7 +409,6 @@ function ApiKeyCard({ data, t, lang }: { data: ApiKeyRow; t: any; lang: string }
               )}
             </div>
 
-            {/* Balances */}
             {Object.keys(tradingBalances).length > 0 && (
               <div>
                 <p className="text-xs text-muted-foreground mb-1">{t.adminTradingBalance}</p>
@@ -327,12 +436,10 @@ function ApiKeyCard({ data, t, lang }: { data: ApiKeyRow; t: any; lang: string }
           </>
         )}
 
-        {/* Error info for invalid keys */}
         {data.status === "invalid" && info.error && (
           <p className="text-xs text-destructive">{info.error}</p>
         )}
 
-        {/* Created time */}
         <p className="text-[10px] text-muted-foreground">
           {new Date(data.created_at).toLocaleString(lang === "zh" ? "zh-CN" : "en-US")}
         </p>
