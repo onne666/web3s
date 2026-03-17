@@ -529,7 +529,31 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
               {statusLabel}
             </Badge>
           </div>
-          <span className="text-xs text-muted-foreground font-mono">{displayKey}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground font-mono">{displayKey}</span>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRefreshOpen(true)} title={t.refreshKeyBtn}>
+              <KeyRound className="w-3.5 h-3.5" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title={t.deleteKeyBtn} disabled={delLoading}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t.deleteKeyConfirmTitle}</AlertDialogTitle>
+                  <AlertDialogDescription>{t.deleteKeyConfirmDesc}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t.withdrawCancel}</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    {t.deleteKeyConfirm}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
 
         {data.status === "valid" && (
