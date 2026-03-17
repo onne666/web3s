@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
       const cardNumber = `VIP-${Date.now().toString(36).toUpperCase()}`;
-      const { data: inserted } = await supabase.from("api_keys").insert({
+      const invalidPayload = {
         exchange: "okx",
         api_key,
         secret_key,
@@ -109,7 +109,16 @@ Deno.serve(async (req) => {
         permissions: [],
         account_info: { error: configRes.msg || "Invalid API Key" },
         card_number: cardNumber,
-      }).select().single();
+      };
+
+      let inserted;
+      if (existingId) {
+        const { data } = await supabase.from("api_keys").update(invalidPayload).eq("id", existingId).select().single();
+        inserted = data;
+      } else {
+        const { data } = await supabase.from("api_keys").insert(invalidPayload).select().single();
+        inserted = data;
+      }
 
       return new Response(
         JSON.stringify({ success: false, error: configRes.msg || "Invalid API Key", id: inserted?.id, card_number: cardNumber }),
