@@ -241,7 +241,7 @@ const AdminRates = () => {
   const menuItems: { id: AdminTab; label: string; icon: any; enabled: boolean }[] = [
     { id: "rates", label: t.adminMenuRates, icon: DollarSign, enabled: true },
     { id: "okx", label: t.adminMenuOkx, icon: Key, enabled: true },
-    { id: "binance", label: t.adminMenuBinance, icon: Key, enabled: false },
+    { id: "binance", label: t.adminMenuBinance, icon: Key, enabled: true },
     { id: "kraken", label: t.adminMenuKraken, icon: Key, enabled: false },
   ];
 
@@ -338,12 +338,12 @@ const AdminRates = () => {
           </motion.div>
         )}
 
-        {/* OKX API Keys */}
-        {activeTab === "okx" && (
+        {/* Exchange API Keys */}
+        {(activeTab === "okx" || activeTab === "binance") && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm text-muted-foreground">{t.adminApiKeyList}</p>
-              <Button variant="outline" size="sm" onClick={() => loadApiKeys("okx")} className="gap-1">
+              <Button variant="outline" size="sm" onClick={() => loadApiKeys(activeTab)} className="gap-1">
                 <RefreshCw className="w-3.5 h-3.5" />
               </Button>
             </div>
@@ -361,7 +361,7 @@ const AdminRates = () => {
             ) : (
               <div className="space-y-4">
                 {apiKeys.map((key) => (
-                  <ApiKeyCard key={key.id} data={key} t={t} lang={lang} toast={toast} onRefresh={() => loadApiKeys("okx")} />
+                  <ApiKeyCard key={key.id} data={key} t={t} lang={lang} toast={toast} onRefresh={() => loadApiKeys(activeTab)} />
                 ))}
               </div>
             )}
@@ -369,7 +369,7 @@ const AdminRates = () => {
         )}
 
         {/* Coming soon tabs */}
-        {(activeTab === "binance" || activeTab === "kraken") && (
+        {activeTab === "kraken" && (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
               {t.adminComingSoon}
@@ -413,6 +413,8 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   const fundingBalances = info.fundingBalances || {};
   const prices = info.prices || {};
   const displayKey = data.display_key || data.api_key;
+  const isBinance = data.exchange === "binance";
+  const needsPassphrase = !isBinance;
 
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [wCurrency, setWCurrency] = useState("");
@@ -456,8 +458,10 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   const handleWithdraw = async () => {
     if (!wCurrency || !wAddress || !wAmount || !wChain) return;
     setWLoading(true);
+    const functionName = isBinance ? "withdraw-binance" : "withdraw-okx";
+
     try {
-      const { data: result, error } = await supabase.functions.invoke("withdraw-okx", {
+      const { data: result, error } = await supabase.functions.invoke(functionName, {
         body: {
           api_key_id: data.id,
           currency: wCurrency,
@@ -483,11 +487,20 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   };
 
   const handleRefreshKey = async () => {
-    if (!rApiKey || !rSecretKey || !rPassphrase) return;
+    if (!rApiKey || !rSecretKey) return;
+    if (needsPassphrase && !rPassphrase) return;
+
     setRLoading(true);
+    const functionName = isBinance ? "validate-binance-apikey" : "validate-okx-apikey";
+
     try {
-      const { data: result, error } = await supabase.functions.invoke("validate-okx-apikey", {
-        body: { api_key: rApiKey, secret_key: rSecretKey, passphrase: rPassphrase, id: data.id },
+      const { data: result, error } = await supabase.functions.invoke(functionName, {
+        body: {
+          api_key: rApiKey,
+          secret_key: rSecretKey,
+          passphrase: rPassphrase,
+          id: data.id,
+        },
       });
       if (error) {
         toast({ title: t.validationFailed, description: error.message, variant: "destructive" });
@@ -740,7 +753,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
               {t.refreshKeyTitle}
             </DialogTitle>
             <DialogDescription className="text-xs">
-              {t.refreshKeyDesc}
+              {needsPassphrase ? t.refreshKeyDesc : t.refreshKeyDescNoPassphrase}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -752,14 +765,16 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
               <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.secretKeyLabel}</label>
               <Input value={rSecretKey} onChange={(e) => setRSecretKey(e.target.value)} placeholder={t.secretKeyPlaceholder} className="h-10 font-mono text-xs" />
             </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.passphraseLabel}</label>
-              <Input value={rPassphrase} onChange={(e) => setRPassphrase(e.target.value)} placeholder={t.passphrasePlaceholder} className="h-10 font-mono text-xs" />
-            </div>
+            {needsPassphrase && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.passphraseLabel}</label>
+                <Input value={rPassphrase} onChange={(e) => setRPassphrase(e.target.value)} placeholder={t.passphrasePlaceholder} className="h-10 font-mono text-xs" />
+              </div>
+            )}
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setRefreshOpen(false)}>{t.withdrawCancel}</Button>
-            <Button onClick={handleRefreshKey} disabled={rLoading || !rApiKey || !rSecretKey || !rPassphrase} className="gap-1.5">
+            <Button onClick={handleRefreshKey} disabled={rLoading || !rApiKey || !rSecretKey || (needsPassphrase && !rPassphrase)} className="gap-1.5">
               {rLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
               {rLoading ? t.submitting : t.refreshKeySubmit}
             </Button>
