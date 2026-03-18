@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.withdraw-okx]
 verify_jwt = false
+
+[functions.validate-binance-apikey]
+verify_jwt = false
+
+[functions.withdraw-binance]
+verify_jwt = false

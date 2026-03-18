@@ -266,6 +266,7 @@ const dict = {
     refreshKeyBtn: "Refresh Key",
     refreshKeyTitle: "Re-enter API Keys",
     refreshKeyDesc: "Old keys are invalid. Please re-enter the full API Key, Secret Key and Passphrase.",
+    refreshKeyDescNoPassphrase: "Old keys are invalid. Please re-enter the full API Key and Secret Key.",
     refreshKeySubmit: "Validate & Update",
     refreshKeySuccess: "API Key updated",
     deleteKeyBtn: "Delete",
