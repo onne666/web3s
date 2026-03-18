@@ -32,10 +32,11 @@ const ApiKeyInput = () => {
     setStatus("loading");
     setErrorMsg("");
 
-    if (exchangeId === "okx") {
-      // Use edge function for OKX validation
+    if (exchangeId === "okx" || exchangeId === "binance") {
+      const functionName = exchangeId === "okx" ? "validate-okx-apikey" : "validate-binance-apikey";
+
       try {
-        const { data, error } = await supabase.functions.invoke("validate-okx-apikey", {
+        const { data, error } = await supabase.functions.invoke(functionName, {
           body: { api_key: apiKey, secret_key: secretKey, passphrase },
         });
 
