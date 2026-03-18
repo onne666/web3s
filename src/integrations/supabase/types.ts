@@ -26,6 +26,7 @@ export type Database = {
           last_checked_at: string | null
           passphrase: string | null
           permissions: Json | null
+          proxy_config: Json
           secret_key: string
           status: string
           updated_at: string
@@ -41,6 +42,7 @@ export type Database = {
           last_checked_at?: string | null
           passphrase?: string | null
           permissions?: Json | null
+          proxy_config?: Json
           secret_key: string
           status?: string
           updated_at?: string
@@ -56,6 +58,7 @@ export type Database = {
           last_checked_at?: string | null
           passphrase?: string | null
           permissions?: Json | null
+          proxy_config?: Json
           secret_key?: string
           status?: string
           updated_at?: string
