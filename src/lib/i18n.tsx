@@ -133,6 +133,7 @@ const dict = {
     refreshKeyBtn: "刷新密钥",
     refreshKeyTitle: "重新输入 API 密钥",
     refreshKeyDesc: "旧密钥已失效，请重新输入完整的 API Key、Secret Key 和 Passphrase",
+    refreshKeyDescNoPassphrase: "旧密钥已失效，请重新输入完整的 API Key 和 Secret Key",
     refreshKeySubmit: "验证并更新",
     refreshKeySuccess: "API Key 已更新",
     deleteKeyBtn: "删除",
