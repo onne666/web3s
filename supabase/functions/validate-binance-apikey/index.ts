@@ -192,6 +192,8 @@ Deno.serve(async (req) => {
     }
 
     const account = accountRes.data || {};
+    console.log("account keys:", JSON.stringify(Object.keys(account).slice(0, 20)));
+    console.log("account canTrade:", account.canTrade, "canWithdraw:", account.canWithdraw, "permissions:", account.permissions);
 
     // Use /sapi/v1/account/apiRestrictions for detailed permissions
     let permissions: string[] = [];
