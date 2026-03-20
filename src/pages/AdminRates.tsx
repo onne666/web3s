@@ -561,11 +561,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   const [wChain, setWChain] = useState("");
   const [wLoading, setWLoading] = useState(false);
 
-  // Refresh key state
-  const [refreshOpen, setRefreshOpen] = useState(false);
-  const [rApiKey, setRApiKey] = useState("");
-  const [rSecretKey, setRSecretKey] = useState("");
-  const [rPassphrase, setRPassphrase] = useState("");
+  // Quick refresh state (id-only)
   const [rLoading, setRLoading] = useState(false);
 
   // Delete state
