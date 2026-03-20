@@ -729,8 +729,8 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
                 <Globe className="w-3.5 h-3.5" />
               </Button>
             )}
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRefreshOpen(true)} title={t.refreshKeyBtn}>
-              <KeyRound className="w-3.5 h-3.5" />
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleQuickRefresh} disabled={rLoading} title={t.quickRefreshBtn}>
+              {rLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
