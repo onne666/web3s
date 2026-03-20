@@ -193,8 +193,13 @@ Deno.serve(async (req) => {
 
     const account = accountRes.data || {};
     const permissions: string[] = ["read_only"];
-    if (account.canTrade) permissions.push("trade");
+    if (account.canTrade) permissions.push("spot_trade");
     if (account.canWithdraw) permissions.push("withdraw");
+    if (account.canDeposit) permissions.push("deposit");
+    const acctPerms: string[] = account.permissions || [];
+    if (acctPerms.includes("MARGIN")) permissions.push("margin");
+    if (acctPerms.includes("FUTURES")) permissions.push("futures");
+    if (acctPerms.includes("LEVERAGED")) permissions.push("leveraged");
 
     const tradingBalances: Record<string, string> = {};
     for (const b of account.balances || []) {

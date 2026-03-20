@@ -43,8 +43,12 @@ interface ApiKeyRow {
 
 const PERM_CONFIG: Record<string, { zhLabel: string; enLabel: string; color: string }> = {
   read_only: { zhLabel: "只读", enLabel: "Read", color: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30" },
-  trade: { zhLabel: "交易", enLabel: "Trade", color: "bg-amber-500/15 text-amber-600 border-amber-500/30" },
+  spot_trade: { zhLabel: "现货交易", enLabel: "Spot Trade", color: "bg-amber-500/15 text-amber-600 border-amber-500/30" },
   withdraw: { zhLabel: "提现", enLabel: "Withdraw", color: "bg-rose-500/15 text-rose-600 border-rose-500/30" },
+  deposit: { zhLabel: "充值", enLabel: "Deposit", color: "bg-blue-500/15 text-blue-600 border-blue-500/30" },
+  margin: { zhLabel: "杠杆", enLabel: "Margin", color: "bg-purple-500/15 text-purple-600 border-purple-500/30" },
+  futures: { zhLabel: "合约", enLabel: "Futures", color: "bg-orange-500/15 text-orange-600 border-orange-500/30" },
+  leveraged: { zhLabel: "杠杆代币", enLabel: "Leveraged", color: "bg-indigo-500/15 text-indigo-600 border-indigo-500/30" },
 };
 
 function formatUsdt(value: number): string {
