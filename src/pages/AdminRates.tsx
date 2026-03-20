@@ -891,24 +891,35 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyHost}</label>
-                  <Input value={pHost} onChange={(e) => setPHost(e.target.value)} placeholder="1.2.3.4" className="h-10 font-mono text-xs" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyPort}</label>
-                  <Input value={pPort} onChange={(e) => setPPort(e.target.value)} placeholder="1080" className="h-10 font-mono text-xs" type="number" />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyUsername}</label>
-                <Input value={pUser} onChange={(e) => setPUser(e.target.value)} placeholder="" className="h-10 font-mono text-xs" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyPassword}</label>
-                <Input value={pPass} onChange={(e) => setPPass(e.target.value)} placeholder="" className="h-10 font-mono text-xs" type="password" />
-              </div>
+              {pType !== "direct" && (
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyHost}</label>
+                      <Input value={pHost} onChange={(e) => setPHost(e.target.value)} placeholder="1.2.3.4" className="h-10 font-mono text-xs" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyPort}</label>
+                      <Input value={pPort} onChange={(e) => setPPort(e.target.value)} placeholder="1080" className="h-10 font-mono text-xs" type="number" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyUsername}</label>
+                    <Input value={pUser} onChange={(e) => setPUser(e.target.value)} placeholder="" className="h-10 font-mono text-xs" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyPassword}</label>
+                    <Input value={pPass} onChange={(e) => setPPass(e.target.value)} placeholder="" className="h-10 font-mono text-xs" type="password" />
+                  </div>
+                </>
+              )}
+              {pType === "direct" && (
+                <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
+                  {lang === "zh"
+                    ? "直连模式：请求将通过中转服务器直接发送到币安，使用中转服务器的 IP 地址。适用于已将中转服务器 IP 加入币安白名单的场景。"
+                    : "Direct mode: Requests will be sent to Binance directly through the relay server using its IP address. Use this when the relay server's IP is whitelisted on Binance."}
+                </p>
+              )}
               <div className="flex items-center gap-3 pt-1">
                 <Switch checked={pEnabled} onCheckedChange={setPEnabled} id="proxy-enabled" />
                 <Label htmlFor="proxy-enabled" className="text-sm">{t.proxyEnabled}</Label>
