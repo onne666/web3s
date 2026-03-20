@@ -1,80 +1,86 @@
 
 
-## 三大改动：快捷刷新 + 批量刷新 + Relay 管理
+## 显示所有账户余额 + 划转功能
 
-### 1. Edge Function 支持"仅传 id 刷新"
+### 现状分析
 
-**`validate-binance-apikey`** 和 **`validate-okx-apikey`**：
+**Binance**：当前只获取现货账户余额（`/api/v3/account`），`fundingBalances` 始终为空对象 `{}`。缺少合约账户和资金账户余额查询。
 
-当请求体传了 `id` 但没有 `api_key`/`secret_key` 时，增加鉴权逻辑：
-- 从 `Authorization` header 提取 JWT
-- 用 service role client 验证调用者是否为 admin（`has_role`）
-- 从 `api_keys` 表读取已存储的 `api_key`、`secret_key`、`passphrase`、`proxy_config`
-- 用读取到的密钥执行原有验证流程
+**OKX**：已获取交易账户（`/api/v5/account/balance`）和资金账户（`/api/v5/asset/balances`），但前端只显示这两类。
 
-这样前端只需传 `{ id: "xxx" }` 即可刷新，无需再输入密钥。
+**前端**：只显示 `tradingBalances` 和 `fundingBalances` 两个区块，没有合约账户。没有划转功能。
 
-### 2. 前端改造（`AdminRates.tsx`）
+### 方案
 
-**单条快捷刷新**：
-- 将现有的 `KeyRound` 按钮（原来打开"输入密钥"弹窗）改为直接调用 validate 函数，只传 `{ id }`
-- 显示 loading 旋转图标
-- 移除"手动输入密钥刷新"对话框（不再需要）
+#### 1. Edge Function: Binance 获取多账户余额
 
-**批量刷新所有**：
-- 列表上方的 `RefreshCw` 按钮改为"刷新所有"功能
-- 遍历当前 tab 所有 API Key，逐条调用 validate 函数（只传 id）
-- 显示进度（如 "2/5"）和 loading 状态
-- 完成后重新加载列表
+在 `validate-binance-apikey/index.ts` 中新增两个 API 调用：
 
-**新增 Relay 设置管理**：
-- 在侧边栏菜单新增一个 tab："中转设置" / "Relay Settings"
-- 页面内容：两个输入框（Relay URL、Auth Token）+ 保存按钮
-- 数据存储在 `rates` 表中新增一行（`symbol = 'RELAY_CONFIG'`），或新建一个 `settings` 表
+- **资金账户**：`/sapi/v1/asset/getUserAsset`（POST，signed）获取资金账户余额
+- **合约账户**：`/fapi/v2/account`（GET，signed）获取 USDT-M 合约账户余额
 
-考虑到安全性和简洁性，新建一个 `admin_settings` 表更合适：
-- `key` (text, primary key)
-- `value` (text)
-- RLS：仅 admin 可读写
+将结果存入 `account_info` 的三个字段：
+- `tradingBalances`（现货，已有）
+- `fundingBalances`（资金账户，新增）
+- `futuresBalances`（合约账户，新增）
 
-保存后，edge function 优先从数据库读取 relay 配置，fallback 到环境变量。
+#### 2. Edge Function: OKX 无需改动余额获取
 
-### 3. 数据库改动
+OKX 的 `/api/v5/account/balance` 已包含交易账户全部余额。但可以额外补充：
+- 交易账户余额已有（`tradingBalances`）
+- 资金账户余额已有（`fundingBalances`）
+- 无独立合约账户（OKX 统一账户模式，合约余额在 tradingBalances 中）
 
-新建 `admin_settings` 表：
+#### 3. 新增划转 Edge Function
 
-```sql
-CREATE TABLE public.admin_settings (
-  key text PRIMARY KEY,
-  value text NOT NULL,
-  updated_at timestamptz DEFAULT now()
-);
+创建 `supabase/functions/transfer-binance/index.ts`：
+- 调用 Binance `/sapi/v1/asset/transfer`（万向划转 API）
+- 支持在现货/资金/合约账户间划转
+- 需要 admin 鉴权 + `universal_transfer` 权限检查
 
-ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;
+创建 `supabase/functions/transfer-okx/index.ts`：
+- 调用 OKX `/api/v5/asset/transfer`
+- 支持资金账户 ↔ 交易账户划转
 
-CREATE POLICY "Admins can manage settings"
-  ON public.admin_settings FOR ALL
-  TO authenticated
-  USING (public.has_role(auth.uid(), 'admin'))
-  WITH CHECK (public.has_role(auth.uid(), 'admin'));
-```
+#### 4. 前端改造
 
-### 4. Edge Function 读取 Relay 配置
+**余额展示**（`ApiKeyCard` 组件）：
+- 新增 `futuresBalances` 区块显示合约账户余额
+- 三个区块：现货账户 / 资金账户 / 合约账户（各自带 USDT 估值汇总）
 
-在 `validate-binance-apikey` 和 `withdraw-binance` 中，`callBinanceSigned` 改为：
-- 先从 `admin_settings` 表查询 `relay_url` 和 `relay_auth_token`
-- 如果数据库无值，fallback 到 `Deno.env.get("RELAY_SERVICE_URL")` 等环境变量
-- 这样管理员可以在后台直接修改 relay 地址，无需重新部署
+**划转按钮**：
+- 每条 API Key 记录底部，在提币按钮旁新增"划转"按钮
+- 点击打开划转 Dialog，包含：
+  - 源账户类型（现货/资金/合约）
+  - 目标账户类型
+  - 币种选择
+  - 数量输入
+- 调用对应的 transfer edge function
+
+**i18n**：新增划转相关翻译 key。
 
 ### 技术细节
 
-**改动文件**：
-- `supabase/functions/validate-binance-apikey/index.ts` — 支持 id-only 刷新 + 从 DB 读 relay 配置
-- `supabase/functions/validate-okx-apikey/index.ts` — 支持 id-only 刷新
-- `supabase/functions/withdraw-binance/index.ts` — 从 DB 读 relay 配置
-- `src/pages/AdminRates.tsx` — 快捷刷新、批量刷新、Relay 设置 tab
-- `src/lib/i18n.tsx` — 新增翻译 key
-- 数据库 migration — 创建 `admin_settings` 表
+**Binance 资金账户 API**：`POST /sapi/v1/asset/getUserAsset` 需要 signed 请求，返回 `[{asset, free, locked, freeze, ...}]`。
 
-**`AdminTab` 类型**扩展为 `"rates" | "okx" | "binance" | "kraken" | "relay"`
+**Binance 合约账户 API**：`GET /fapi/v2/account` 使用 `https://fapi.binance.com` 域名，返回 `{assets: [{asset, walletBalance, ...}]}`。注意域名不同，需要通过 relay 转发时修改 URL。
+
+**Binance 万向划转类型映射**：
+- 现货→资金：`MAIN_FUNDING`
+- 资金→现货：`FUNDING_MAIN`
+- 现货→合约：`MAIN_UMFUTURE`
+- 合约→现货：`UMFUTURE_MAIN`
+- 资金→合约：`FUNDING_UMFUTURE`
+- 合约→资金：`UMFUTURE_FUNDING`
+
+**OKX 划转**：`/api/v5/asset/transfer` body: `{ccy, amt, from, to}`，`from/to` 值：6=资金账户，18=交易账户。
+
+### 改动文件
+
+- `supabase/functions/validate-binance-apikey/index.ts` — 新增资金和合约余额获取
+- `supabase/functions/transfer-binance/index.ts` — 新建
+- `supabase/functions/transfer-okx/index.ts` — 新建
+- `src/pages/AdminRates.tsx` — 显示三类余额 + 划转 Dialog
+- `src/lib/i18n.tsx` — 新增翻译
+- `supabase/config.toml` — 注册新 edge functions
 
