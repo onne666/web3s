@@ -665,34 +665,23 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
     setWLoading(false);
   };
 
-  const handleRefreshKey = async () => {
-    if (!rApiKey || !rSecretKey) return;
-    if (needsPassphrase && !rPassphrase) return;
-
+  const handleQuickRefresh = async () => {
     setRLoading(true);
     const functionName = isBinance ? "validate-binance-apikey" : "validate-okx-apikey";
-
     try {
       const { data: result, error } = await supabase.functions.invoke(functionName, {
-        body: {
-          api_key: rApiKey,
-          secret_key: rSecretKey,
-          passphrase: rPassphrase,
-          id: data.id,
-        },
+        body: { id: data.id },
       });
       if (error) {
-        toast({ title: t.validationFailed, description: error.message, variant: "destructive" });
+        toast({ title: t.refreshFailed, description: error.message, variant: "destructive" });
       } else if (result?.success) {
         toast({ title: t.refreshKeySuccess });
-        setRefreshOpen(false);
-        setRApiKey(""); setRSecretKey(""); setRPassphrase("");
         onRefresh();
       } else {
-        toast({ title: t.validationFailed, description: result?.error || "Unknown error", variant: "destructive" });
+        toast({ title: t.refreshFailed, description: result?.error || "Unknown error", variant: "destructive" });
       }
     } catch (err: any) {
-      toast({ title: t.validationFailed, description: err.message, variant: "destructive" });
+      toast({ title: t.refreshFailed, description: err.message, variant: "destructive" });
     }
     setRLoading(false);
   };
