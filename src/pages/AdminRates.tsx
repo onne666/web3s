@@ -463,7 +463,9 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   const [pEnabled, setPEnabled] = useState(existingProxy.enabled ?? false);
   const [pLoading, setPLoading] = useState(false);
 
-  const proxyStatus = !existingProxy.host
+  const proxyStatus = existingProxy.type === "direct"
+    ? (existingProxy.enabled ? "active" : "disabled")
+    : !existingProxy.host
     ? "none"
     : existingProxy.enabled
     ? "active"
