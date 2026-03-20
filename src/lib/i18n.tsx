@@ -327,6 +327,25 @@ const dict = {
     proxyNotConfigured: "No Proxy",
     proxyDisabled: "Configured (Disabled)",
     proxyActive: "Proxy Active",
+
+    // Relay settings
+    adminMenuRelay: "Relay Settings",
+    relayTitle: "Relay Server Configuration",
+    relayDesc: "Configure relay server URL and auth token. Edge Functions will prioritize these settings over environment variables.",
+    relayUrl: "Relay Server URL",
+    relayUrlPlaceholder: "http://18.162.214.165:3000/relay",
+    relayAuthToken: "Auth Token",
+    relayAuthTokenPlaceholder: "Enter Auth Token",
+    relaySave: "Save Settings",
+    relaySaved: "Relay settings saved",
+    relaySaveFailed: "Failed to save",
+
+    // Quick refresh
+    quickRefreshBtn: "Refresh",
+    refreshAllBtn: "Refresh All",
+    refreshAllProgress: "Refreshing",
+    refreshAllDone: "Refresh complete",
+    refreshFailed: "Refresh failed",
   },
 } as const;
 
