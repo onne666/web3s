@@ -108,10 +108,13 @@ async function callBinanceSigned(
   // Check if we should use relay
   const relayUrl = Deno.env.get("RELAY_SERVICE_URL");
   const relayToken = Deno.env.get("RELAY_AUTH_TOKEN");
-  const useRelay = proxyConfig?.enabled && proxyConfig?.host && relayUrl && relayToken;
+  const useRelay = !!(relayUrl && relayToken);
 
   if (useRelay) {
-    return callBinanceViaRelay(relayUrl!, relayToken!, proxyConfig!, {
+    const effectiveProxy: ProxyConfig = (proxyConfig?.enabled && proxyConfig?.host)
+      ? proxyConfig!
+      : { enabled: false };
+    return callBinanceViaRelay(relayUrl!, relayToken!, effectiveProxy, {
       method: "GET",
       url,
       headers,
