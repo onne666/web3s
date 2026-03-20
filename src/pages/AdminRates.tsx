@@ -609,6 +609,11 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground font-mono">{displayKey}</span>
+            {isBinance && (
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setProxyOpen(true)} title={t.proxyEditBtn}>
+                <Globe className="w-3.5 h-3.5" />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRefreshOpen(true)} title={t.refreshKeyBtn}>
               <KeyRound className="w-3.5 h-3.5" />
             </Button>
