@@ -41,7 +41,11 @@ const SelectExchange = () => {
             onClick={() => navigate(`/api-key/${ex.id}`)}
             className={`glass-panel p-5 flex flex-col items-center gap-3 hover:border-primary/50 transition-colors bg-gradient-to-br ${exchangeColors[ex.id] || ""}`}
           >
-            <span className="text-3xl">{ex.logo}</span>
+            {ex.logo.startsWith("http") ? (
+              <img src={ex.logo} alt={ex.name} className="w-8 h-8 object-contain" />
+            ) : (
+              <span className="text-3xl">{ex.logo}</span>
+            )}
             <span className="font-semibold text-sm">{ex.name}</span>
           </motion.button>
         ))}

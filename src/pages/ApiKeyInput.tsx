@@ -93,15 +93,6 @@ const ApiKeyInput = () => {
         <p className="text-sm text-muted-foreground mb-6">{t.apiKeyBindTitle}</p>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="glass-panel p-4 mb-6 flex items-start gap-3">
-        <Shield className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-semibold text-primary">{t.securityTitle}</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {t.securityDesc} <span className="text-foreground font-medium">{t.securityReadOnly}</span> {t.securityDescEnd}
-          </p>
-        </div>
-      </motion.div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="mb-8">
         <h3 className="text-sm font-semibold mb-3">{t.guideTitle}</h3>
