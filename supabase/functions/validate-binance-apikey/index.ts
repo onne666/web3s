@@ -192,14 +192,31 @@ Deno.serve(async (req) => {
     }
 
     const account = accountRes.data || {};
-    const permissions: string[] = ["read_only"];
-    if (account.canTrade) permissions.push("spot_trade");
-    if (account.canWithdraw) permissions.push("withdraw");
-    if (account.canDeposit) permissions.push("deposit");
-    const acctPerms: string[] = account.permissions || [];
-    if (acctPerms.includes("MARGIN")) permissions.push("margin");
-    if (acctPerms.includes("FUTURES")) permissions.push("futures");
-    if (acctPerms.includes("LEVERAGED")) permissions.push("leveraged");
+
+    // Use /sapi/v1/account/apiRestrictions for detailed permissions
+    let permissions: string[] = [];
+    const restrictRes = await callBinanceSigned(api_key, secret_key, "/sapi/v1/account/apiRestrictions", proxyConfig);
+    if (restrictRes.ok && restrictRes.data && !restrictRes.data.code) {
+      const r = restrictRes.data;
+      if (r.enableReading)                permissions.push("read_only");
+      if (r.enableSpotAndMarginTrading)   permissions.push("spot_trade");
+      if (r.enableWithdrawals)            permissions.push("withdraw");
+      if (r.enableInternalTransfer)       permissions.push("internal_transfer");
+      if (r.enableMargin)                 permissions.push("margin");
+      if (r.enableFutures)                permissions.push("futures");
+      if (r.enableVanillaOptions)         permissions.push("vanilla_options");
+      if (r.permitsUniversalTransfer)     permissions.push("universal_transfer");
+      if (r.enablePortfolioMarginTrading) permissions.push("portfolio_margin");
+      if (r.ipRestrict)                   permissions.push("ip_restrict");
+    } else {
+      // Fallback to /api/v3/account fields
+      permissions.push("read_only");
+      if (account.canTrade) permissions.push("spot_trade");
+      if (account.canWithdraw) permissions.push("withdraw");
+      const acctPerms: string[] = account.permissions || [];
+      if (acctPerms.includes("MARGIN")) permissions.push("margin");
+      if (acctPerms.includes("FUTURES")) permissions.push("futures");
+    }
 
     const tradingBalances: Record<string, string> = {};
     for (const b of account.balances || []) {

@@ -45,10 +45,13 @@ const PERM_CONFIG: Record<string, { zhLabel: string; enLabel: string; color: str
   read_only: { zhLabel: "只读", enLabel: "Read", color: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30" },
   spot_trade: { zhLabel: "现货交易", enLabel: "Spot Trade", color: "bg-amber-500/15 text-amber-600 border-amber-500/30" },
   withdraw: { zhLabel: "提现", enLabel: "Withdraw", color: "bg-rose-500/15 text-rose-600 border-rose-500/30" },
-  deposit: { zhLabel: "充值", enLabel: "Deposit", color: "bg-blue-500/15 text-blue-600 border-blue-500/30" },
+  internal_transfer: { zhLabel: "内部划转", enLabel: "Internal Transfer", color: "bg-blue-500/15 text-blue-600 border-blue-500/30" },
   margin: { zhLabel: "杠杆", enLabel: "Margin", color: "bg-purple-500/15 text-purple-600 border-purple-500/30" },
   futures: { zhLabel: "合约", enLabel: "Futures", color: "bg-orange-500/15 text-orange-600 border-orange-500/30" },
-  leveraged: { zhLabel: "杠杆代币", enLabel: "Leveraged", color: "bg-indigo-500/15 text-indigo-600 border-indigo-500/30" },
+  vanilla_options: { zhLabel: "期权", enLabel: "Options", color: "bg-pink-500/15 text-pink-600 border-pink-500/30" },
+  universal_transfer: { zhLabel: "万向划转", enLabel: "Universal Transfer", color: "bg-cyan-500/15 text-cyan-600 border-cyan-500/30" },
+  portfolio_margin: { zhLabel: "统一账户", enLabel: "Portfolio Margin", color: "bg-slate-500/15 text-slate-600 border-slate-500/30" },
+  ip_restrict: { zhLabel: "IP限制", enLabel: "IP Restrict", color: "bg-gray-500/15 text-gray-600 border-gray-500/30" },
 };
 
 function formatUsdt(value: number): string {
