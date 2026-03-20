@@ -223,7 +223,6 @@ Deno.serve(async (req) => {
       if (r.ipRestrict)                   permissions.push("ip_restrict");
     } else {
       // Fallback to /api/v3/account fields
-      console.log("Fallback account data:", JSON.stringify({ canTrade: account.canTrade, canWithdraw: account.canWithdraw, permissions: account.permissions }));
       permissions.push("read_only");
       if (account.canTrade) permissions.push("spot_trade");
       if (account.canWithdraw) permissions.push("withdraw");
