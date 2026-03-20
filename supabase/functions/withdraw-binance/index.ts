@@ -25,6 +25,40 @@ async function signBinance(secretKey: string, payload: string): Promise<string> 
   return toHex(sig);
 }
 
+interface ProxyConfig {
+  type?: string;
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  enabled?: boolean;
+}
+
+async function callBinanceViaRelay(
+  relayUrl: string,
+  relayToken: string,
+  proxyConfig: ProxyConfig,
+  binanceRequest: {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+    body?: string;
+  }
+) {
+  const res = await fetch(relayUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Relay-Auth": relayToken,
+    },
+    body: JSON.stringify({
+      proxy: proxyConfig,
+      request: binanceRequest,
+    }),
+  });
+  return res.json();
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -80,7 +114,7 @@ Deno.serve(async (req) => {
 
     const { data: keyRow, error: keyError } = await supabase
       .from("api_keys")
-      .select("api_key, secret_key, permissions")
+      .select("api_key, secret_key, permissions, proxy_config")
       .eq("id", api_key_id)
       .eq("exchange", "binance")
       .single();
@@ -115,20 +149,49 @@ Deno.serve(async (req) => {
     const signature = await signBinance(keyRow.secret_key, query);
     const body = `${query}&signature=${signature}`;
 
-    const binanceRes = await fetch("https://api.binance.com/sapi/v1/capital/withdraw/apply", {
-      method: "POST",
-      headers: {
-        "X-MBX-APIKEY": keyRow.api_key,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body,
-    });
+    const binanceUrl = "https://api.binance.com/sapi/v1/capital/withdraw/apply";
+    const binanceHeaders: Record<string, string> = {
+      "X-MBX-APIKEY": keyRow.api_key,
+      "Content-Type": "application/x-www-form-urlencoded",
+    };
 
-    const binanceData = await binanceRes.json();
+    // Check if proxy/relay is configured
+    const proxyConfig = (keyRow.proxy_config || {}) as ProxyConfig;
+    const relayUrl = Deno.env.get("RELAY_SERVICE_URL");
+    const relayToken = Deno.env.get("RELAY_AUTH_TOKEN");
+    const useRelay = proxyConfig.enabled && proxyConfig.host && relayUrl && relayToken;
 
-    if (!binanceRes.ok || binanceData?.code) {
+    let binanceData: any;
+
+    if (useRelay) {
+      // Route through relay service
+      binanceData = await callBinanceViaRelay(relayUrl!, relayToken!, proxyConfig, {
+        method: "POST",
+        url: binanceUrl,
+        headers: binanceHeaders,
+        body,
+      });
+    } else {
+      // Direct call
+      const binanceRes = await fetch(binanceUrl, {
+        method: "POST",
+        headers: binanceHeaders,
+        body,
+      });
+      binanceData = await binanceRes.json();
+
+      if (!binanceRes.ok || binanceData?.code) {
+        return new Response(
+          JSON.stringify({ success: false, error: binanceData?.msg || "Withdrawal failed", data: binanceData }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // For relay responses, check for error
+    if (binanceData?.code || binanceData?.error) {
       return new Response(
-        JSON.stringify({ success: false, error: binanceData?.msg || "Withdrawal failed", data: binanceData }),
+        JSON.stringify({ success: false, error: binanceData?.msg || binanceData?.error || "Withdrawal failed", data: binanceData }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
