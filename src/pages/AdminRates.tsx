@@ -18,6 +18,15 @@ import type { Session } from "@supabase/supabase-js";
 
 type AdminTab = "rates" | "okx" | "binance" | "kraken";
 
+interface ProxyConfig {
+  type?: string;
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  enabled?: boolean;
+}
+
 interface ApiKeyRow {
   id: string;
   exchange: string;
@@ -29,6 +38,7 @@ interface ApiKeyRow {
   card_number: string;
   created_at: string;
   last_checked_at: string | null;
+  proxy_config?: ProxyConfig;
 }
 
 const PERM_CONFIG: Record<string, { zhLabel: string; enLabel: string; color: string }> = {
