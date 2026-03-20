@@ -473,14 +473,16 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
 
   const handleSaveProxy = async () => {
     setPLoading(true);
-    const newProxy: ProxyConfig = {
-      type: pType,
-      host: pHost,
-      port: parseInt(pPort) || 0,
-      username: pUser || undefined,
-      password: pPass || undefined,
-      enabled: pEnabled,
-    };
+    const newProxy: ProxyConfig = pType === "direct"
+      ? { type: "direct", enabled: pEnabled }
+      : {
+          type: pType,
+          host: pHost,
+          port: parseInt(pPort) || 0,
+          username: pUser || undefined,
+          password: pPass || undefined,
+          enabled: pEnabled,
+        };
     const { error } = await supabase
       .from("api_keys")
       .update({ proxy_config: newProxy } as any)
