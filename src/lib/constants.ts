@@ -1,6 +1,6 @@
 export const EXCHANGES = [
-  { id: "binance", name: "Binance", logo: "🟡" },
-  { id: "okx", name: "OKX", logo: "⚫" },
+  { id: "binance", name: "Binance", logo: "https://bin.bnbstatic.com/static/images/common/logo.png" },
+  { id: "okx", name: "OKX", logo: "https://www.okx.com/cdn/assets/imgs/253/59830BB78B18A776.png" },
   { id: "bybit", name: "Bybit", logo: "🟠" },
   { id: "bitget", name: "Bitget", logo: "🔵" },
   { id: "kraken", name: "Kraken", logo: "🟣" },
