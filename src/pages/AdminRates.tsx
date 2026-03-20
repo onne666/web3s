@@ -884,6 +884,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="direct">{lang === "zh" ? "直连（无代理）" : "Direct (No Proxy)"}</SelectItem>
                     <SelectItem value="socks5">SOCKS5</SelectItem>
                     <SelectItem value="http">HTTP</SelectItem>
                     <SelectItem value="https">HTTPS</SelectItem>
