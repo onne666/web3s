@@ -466,6 +466,46 @@ const AdminRates = () => {
           </motion.div>
         )}
 
+        {/* Relay Settings */}
+        {activeTab === "relay" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Server className="w-4 h-4" />
+                  {t.relayTitle}
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">{t.relayDesc}</p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.relayUrl}</label>
+                  <Input
+                    value={relayUrl}
+                    onChange={(e) => { setRelayUrl(e.target.value); setRelaySaved(false); }}
+                    placeholder={t.relayUrlPlaceholder}
+                    className="h-10 font-mono text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.relayAuthToken}</label>
+                  <Input
+                    type="password"
+                    value={relayAuthToken}
+                    onChange={(e) => { setRelayAuthToken(e.target.value); setRelaySaved(false); }}
+                    placeholder={t.relayAuthTokenPlaceholder}
+                    className="h-10 font-mono text-xs"
+                  />
+                </div>
+                <Button onClick={handleSaveRelay} disabled={relayLoading} className="gap-2">
+                  {relayLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {relaySaved ? t.saved : t.relaySave}
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
         {/* Coming soon tabs */}
         {activeTab === "kraken" && (
           <Card>
