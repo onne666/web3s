@@ -560,6 +560,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   const [wAddress, setWAddress] = useState("");
   const [wAmount, setWAmount] = useState("");
   const [wChain, setWChain] = useState("");
+  const [wWalletType, setWWalletType] = useState("0"); // "0"=spot, "1"=funding
   const [wLoading, setWLoading] = useState(false);
 
   // Transfer state
