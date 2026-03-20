@@ -160,6 +160,7 @@ Deno.serve(async (req) => {
       address: String(address),
       amount: String(amount),
       network: String(chain),
+      walletType,
       recvWindow: "5000",
       timestamp: Date.now().toString(),
     });

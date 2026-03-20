@@ -319,6 +319,11 @@ const dict = {
     withdrawNoPermission: "This API Key lacks withdraw permission",
     withdrawProcessing: "Submitting...",
     withdrawSelectCurrency: "Select currency",
+    withdrawWalletType: "Withdraw From",
+    withdrawWalletSpot: "Spot Wallet",
+    withdrawWalletFunding: "Funding Wallet",
+    withdrawAvailBalance: "Available",
+    withdrawInsufficient: "Insufficient balance, transfer first",
     estimatedUsdt: "≈ USDT",
     totalEstimatedUsdt: "Total Estimated",
 
