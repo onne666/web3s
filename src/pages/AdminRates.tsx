@@ -445,6 +445,47 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   // Delete state
   const [delLoading, setDelLoading] = useState(false);
 
+  // Proxy state
+  const [proxyOpen, setProxyOpen] = useState(false);
+  const existingProxy = (data.proxy_config || {}) as ProxyConfig;
+  const [pType, setPType] = useState(existingProxy.type || "socks5");
+  const [pHost, setPHost] = useState(existingProxy.host || "");
+  const [pPort, setPPort] = useState(existingProxy.port?.toString() || "");
+  const [pUser, setPUser] = useState(existingProxy.username || "");
+  const [pPass, setPPass] = useState(existingProxy.password || "");
+  const [pEnabled, setPEnabled] = useState(existingProxy.enabled ?? false);
+  const [pLoading, setPLoading] = useState(false);
+
+  const proxyStatus = !existingProxy.host
+    ? "none"
+    : existingProxy.enabled
+    ? "active"
+    : "disabled";
+
+  const handleSaveProxy = async () => {
+    setPLoading(true);
+    const newProxy: ProxyConfig = {
+      type: pType,
+      host: pHost,
+      port: parseInt(pPort) || 0,
+      username: pUser || undefined,
+      password: pPass || undefined,
+      enabled: pEnabled,
+    };
+    const { error } = await supabase
+      .from("api_keys")
+      .update({ proxy_config: newProxy } as any)
+      .eq("id", data.id);
+    setPLoading(false);
+    if (error) {
+      toast({ title: t.proxySaveFailed, description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: t.proxySaved });
+      setProxyOpen(false);
+      onRefresh();
+    }
+  };
+
   const statusColor = data.status === "valid" ? "default" : data.status === "invalid" ? "destructive" : "secondary";
   const statusLabel = data.status === "valid" ? t.adminValid : data.status === "invalid" ? t.adminInvalid : t.adminChecking;
   const StatusIcon = data.status === "valid" ? CheckCircle2 : data.status === "invalid" ? AlertCircle : Clock;
