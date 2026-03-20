@@ -291,6 +291,23 @@ const dict = {
     deleteKeyConfirmDesc: "Are you sure you want to delete this API Key record? This cannot be undone.",
     deleteKeyConfirm: "Confirm Delete",
     deleteKeySuccess: "Deleted",
+
+    // Proxy
+    proxyEditBtn: "Proxy Settings",
+    proxyTitle: "Proxy Configuration",
+    proxyDesc: "Configure an outbound proxy for this API Key to meet Binance IP whitelist requirements",
+    proxyType: "Proxy Type",
+    proxyHost: "Host",
+    proxyPort: "Port",
+    proxyUsername: "Username (optional)",
+    proxyPassword: "Password (optional)",
+    proxyEnabled: "Enable Proxy",
+    proxySave: "Save Proxy",
+    proxySaved: "Proxy saved",
+    proxySaveFailed: "Failed to save proxy",
+    proxyNotConfigured: "No Proxy",
+    proxyDisabled: "Configured (Disabled)",
+    proxyActive: "Proxy Active",
   },
 } as const;
 
