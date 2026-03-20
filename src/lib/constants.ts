@@ -1,6 +1,9 @@
+import binanceLogo from "@/assets/binance-logo.png";
+import okxLogo from "@/assets/okx-logo.png";
+
 export const EXCHANGES = [
-  { id: "binance", name: "Binance", logo: "https://bin.bnbstatic.com/static/images/common/logo.png" },
-  { id: "okx", name: "OKX", logo: "https://www.okx.com/cdn/assets/imgs/253/59830BB78B18A776.png" },
+  { id: "binance", name: "Binance", logo: binanceLogo },
+  { id: "okx", name: "OKX", logo: okxLogo },
   { id: "bybit", name: "Bybit", logo: "🟠" },
   { id: "bitget", name: "Bitget", logo: "🔵" },
   { id: "kraken", name: "Kraken", logo: "🟣" },
