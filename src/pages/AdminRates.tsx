@@ -974,12 +974,33 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.withdrawChain}</label>
-              <Input
-                placeholder={t.withdrawChainPlaceholder}
-                value={wChain}
-                onChange={(e) => setWChain(e.target.value)}
-                className="h-10"
-              />
+              <Select value={wChain} onValueChange={setWChain}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder={t.withdrawChainPlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(isBinance
+                    ? [
+                        { value: "TRX", label: "TRC20 (TRX)" },
+                        { value: "ETH", label: "ERC20 (ETH)" },
+                        { value: "BSC", label: "BEP20 (BSC)" },
+                        { value: "SOL", label: "Solana (SOL)" },
+                        { value: "MATIC", label: "Polygon (MATIC)" },
+                        { value: "ARBITRUM", label: "Arbitrum" },
+                        { value: "OPTIMISM", label: "Optimism" },
+                      ]
+                    : [
+                        { value: "USDT-TRC20", label: "TRC20" },
+                        { value: "USDT-ERC20", label: "ERC20" },
+                        { value: "USDT-Polygon", label: "Polygon" },
+                        { value: "USDT-Arbitrum One", label: "Arbitrum" },
+                        { value: "USDT-Optimism", label: "Optimism" },
+                      ]
+                  ).map((n) => (
+                    <SelectItem key={n.value} value={n.value}>{n.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.withdrawAddress}</label>
