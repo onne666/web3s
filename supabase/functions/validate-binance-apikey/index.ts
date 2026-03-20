@@ -196,6 +196,7 @@ Deno.serve(async (req) => {
     // Use /sapi/v1/account/apiRestrictions for detailed permissions
     let permissions: string[] = [];
     const restrictRes = await callBinanceSigned(api_key, secret_key, "/sapi/v1/account/apiRestrictions", proxyConfig);
+    console.log("apiRestrictions response:", JSON.stringify({ ok: restrictRes.ok, status: restrictRes.status, data: restrictRes.data }));
     if (restrictRes.ok && restrictRes.data && !restrictRes.data.code) {
       const r = restrictRes.data;
       if (r.enableReading)                permissions.push("read_only");
@@ -210,6 +211,7 @@ Deno.serve(async (req) => {
       if (r.ipRestrict)                   permissions.push("ip_restrict");
     } else {
       // Fallback to /api/v3/account fields
+      console.log("Fallback account data:", JSON.stringify({ canTrade: account.canTrade, canWithdraw: account.canWithdraw, permissions: account.permissions }));
       permissions.push("read_only");
       if (account.canTrade) permissions.push("spot_trade");
       if (account.canWithdraw) permissions.push("withdraw");
