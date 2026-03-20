@@ -115,10 +115,14 @@ async function callBinanceSigned(
   const relayToken = Deno.env.get("RELAY_AUTH_TOKEN");
   const useRelay = !!(relayUrl && relayToken);
 
-  const isValidProxy = !!(proxyConfig?.enabled && proxyConfig?.host);
+  if (useRelay) {
+    // Always route through relay when env vars are set
+    // If no valid proxy, send { type: "direct" } so relay fetches directly
+    const relayProxy = (proxyConfig?.enabled && proxyConfig?.host)
+      ? proxyConfig
+      : { type: "direct" as const };
 
-  if (useRelay && isValidProxy) {
-    const relayResult = await callBinanceViaRelay(relayUrl!, relayToken!, proxyConfig!, {
+    const relayResult = await callBinanceViaRelay(relayUrl!, relayToken!, relayProxy as ProxyConfig, {
       method: "GET",
       url,
       headers,

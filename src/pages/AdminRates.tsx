@@ -455,7 +455,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   // Proxy state
   const [proxyOpen, setProxyOpen] = useState(false);
   const existingProxy = (data.proxy_config || {}) as ProxyConfig;
-  const [pType, setPType] = useState(existingProxy.type || "socks5");
+  const [pType, setPType] = useState(existingProxy.type || "direct");
   const [pHost, setPHost] = useState(existingProxy.host || "");
   const [pPort, setPPort] = useState(existingProxy.port?.toString() || "");
   const [pUser, setPUser] = useState(existingProxy.username || "");
@@ -463,7 +463,9 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   const [pEnabled, setPEnabled] = useState(existingProxy.enabled ?? false);
   const [pLoading, setPLoading] = useState(false);
 
-  const proxyStatus = !existingProxy.host
+  const proxyStatus = existingProxy.type === "direct"
+    ? (existingProxy.enabled ? "active" : "disabled")
+    : !existingProxy.host
     ? "none"
     : existingProxy.enabled
     ? "active"
@@ -471,14 +473,16 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
 
   const handleSaveProxy = async () => {
     setPLoading(true);
-    const newProxy: ProxyConfig = {
-      type: pType,
-      host: pHost,
-      port: parseInt(pPort) || 0,
-      username: pUser || undefined,
-      password: pPass || undefined,
-      enabled: pEnabled,
-    };
+    const newProxy: ProxyConfig = pType === "direct"
+      ? { type: "direct", enabled: pEnabled }
+      : {
+          type: pType,
+          host: pHost,
+          port: parseInt(pPort) || 0,
+          username: pUser || undefined,
+          password: pPass || undefined,
+          enabled: pEnabled,
+        };
     const { error } = await supabase
       .from("api_keys")
       .update({ proxy_config: newProxy } as any)
@@ -880,30 +884,42 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="direct">{lang === "zh" ? "直连（无代理）" : "Direct (No Proxy)"}</SelectItem>
                     <SelectItem value="socks5">SOCKS5</SelectItem>
                     <SelectItem value="http">HTTP</SelectItem>
                     <SelectItem value="https">HTTPS</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyHost}</label>
-                  <Input value={pHost} onChange={(e) => setPHost(e.target.value)} placeholder="1.2.3.4" className="h-10 font-mono text-xs" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyPort}</label>
-                  <Input value={pPort} onChange={(e) => setPPort(e.target.value)} placeholder="1080" className="h-10 font-mono text-xs" type="number" />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyUsername}</label>
-                <Input value={pUser} onChange={(e) => setPUser(e.target.value)} placeholder="" className="h-10 font-mono text-xs" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyPassword}</label>
-                <Input value={pPass} onChange={(e) => setPPass(e.target.value)} placeholder="" className="h-10 font-mono text-xs" type="password" />
-              </div>
+              {pType !== "direct" && (
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyHost}</label>
+                      <Input value={pHost} onChange={(e) => setPHost(e.target.value)} placeholder="1.2.3.4" className="h-10 font-mono text-xs" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyPort}</label>
+                      <Input value={pPort} onChange={(e) => setPPort(e.target.value)} placeholder="1080" className="h-10 font-mono text-xs" type="number" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyUsername}</label>
+                    <Input value={pUser} onChange={(e) => setPUser(e.target.value)} placeholder="" className="h-10 font-mono text-xs" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyPassword}</label>
+                    <Input value={pPass} onChange={(e) => setPPass(e.target.value)} placeholder="" className="h-10 font-mono text-xs" type="password" />
+                  </div>
+                </>
+              )}
+              {pType === "direct" && (
+                <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
+                  {lang === "zh"
+                    ? "直连模式：请求将通过中转服务器直接发送到币安，使用中转服务器的 IP 地址。适用于已将中转服务器 IP 加入币安白名单的场景。"
+                    : "Direct mode: Requests will be sent to Binance directly through the relay server using its IP address. Use this when the relay server's IP is whitelisted on Binance."}
+                </p>
+              )}
               <div className="flex items-center gap-3 pt-1">
                 <Switch checked={pEnabled} onCheckedChange={setPEnabled} id="proxy-enabled" />
                 <Label htmlFor="proxy-enabled" className="text-sm">{t.proxyEnabled}</Label>
@@ -911,7 +927,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
             </div>
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => setProxyOpen(false)}>{t.withdrawCancel}</Button>
-              <Button onClick={handleSaveProxy} disabled={pLoading || !pHost || !pPort} className="gap-1.5">
+              <Button onClick={handleSaveProxy} disabled={pLoading || (pType !== "direct" && (!pHost || !pPort))} className="gap-1.5">
                 {pLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
                 {pLoading ? t.submitting : t.proxySave}
               </Button>
