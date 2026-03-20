@@ -119,11 +119,19 @@ async function callBinanceSigned(
     const effectiveProxy: ProxyConfig = (proxyConfig?.enabled && proxyConfig?.host)
       ? proxyConfig!
       : { enabled: false };
-    return callBinanceViaRelay(relayUrl!, relayToken!, effectiveProxy, {
+    const relayResult = await callBinanceViaRelay(relayUrl!, relayToken!, effectiveProxy, {
       method: "GET",
       url,
       headers,
     });
+    // If relay itself had an error (not binance error), fallback to direct call
+    if (relayResult.relayError) {
+      console.log(`Relay error for ${path}, falling back to direct call`);
+      const res = await fetch(url, { headers });
+      const data = await res.json();
+      return { ok: res.ok, status: res.status, data, relayError: false };
+    }
+    return relayResult;
   }
 
   const res = await fetch(url, { headers });
