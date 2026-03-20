@@ -129,6 +129,25 @@ const dict = {
     estimatedUsdt: "≈ USDT",
     totalEstimatedUsdt: "合计估值",
 
+    // Transfer
+    transferBtn: "划转",
+    transferTitle: "账户划转",
+    transferFromAccount: "源账户",
+    transferToAccount: "目标账户",
+    transferAsset: "币种",
+    transferAmount: "数量",
+    transferConfirm: "确认划转",
+    transferCancel: "取消",
+    transferSuccess: "划转请求已提交",
+    transferFailed: "划转失败",
+    transferNoPermission: "该 API Key 无划转权限",
+    transferProcessing: "提交中...",
+    transferSpot: "现货账户",
+    transferFunding: "资金账户",
+    transferFutures: "合约账户",
+    transferTrading: "交易账户",
+    adminFuturesBalance: "合约账户",
+
     // Refresh / Delete
     refreshKeyBtn: "刷新密钥",
     refreshKeyTitle: "重新输入 API 密钥",
