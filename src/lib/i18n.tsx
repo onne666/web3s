@@ -317,6 +317,25 @@ const dict = {
     estimatedUsdt: "≈ USDT",
     totalEstimatedUsdt: "Total Estimated",
 
+    // Transfer
+    transferBtn: "Transfer",
+    transferTitle: "Account Transfer",
+    transferFromAccount: "From Account",
+    transferToAccount: "To Account",
+    transferAsset: "Asset",
+    transferAmount: "Amount",
+    transferConfirm: "Confirm Transfer",
+    transferCancel: "Cancel",
+    transferSuccess: "Transfer request submitted",
+    transferFailed: "Transfer failed",
+    transferNoPermission: "This API Key lacks transfer permission",
+    transferProcessing: "Submitting...",
+    transferSpot: "Spot Account",
+    transferFunding: "Funding Account",
+    transferFutures: "Futures Account",
+    transferTrading: "Trading Account",
+    adminFuturesBalance: "Futures Account",
+
     // Refresh / Delete
     refreshKeyBtn: "Refresh Key",
     refreshKeyTitle: "Re-enter API Keys",
