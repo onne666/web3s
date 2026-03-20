@@ -121,13 +121,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { api_key_id, currency, amount, address, chain } = await req.json();
+    const { api_key_id, currency, amount, address, chain, wallet_type } = await req.json();
     if (!api_key_id || !currency || !amount || !address || !chain) {
       return new Response(
         JSON.stringify({ error: "Missing required fields: api_key_id, currency, amount, address, chain" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    // wallet_type: "0" = spot wallet (default), "1" = funding wallet
+    const walletType = wallet_type === "1" ? "1" : "0";
 
     const { data: keyRow, error: keyError } = await supabase
       .from("api_keys")
