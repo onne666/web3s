@@ -85,7 +85,12 @@ async function callBinanceViaRelay(
     }),
   });
   const data = await res.json();
-  return { ok: res.ok || !data?.code, status: res.status, data };
+  // Check if response contains actual binance data (not relay/proxy error)
+  if (data?.error && !data?.code && !data?.balances && !data?.ipRestrict && !data?.enableReading) {
+    // Relay/proxy error, not a binance error
+    return { ok: false, status: res.status, data, relayError: true };
+  }
+  return { ok: res.ok || !data?.code, status: res.status, data, relayError: false };
 }
 
 async function callBinanceSigned(
@@ -114,11 +119,19 @@ async function callBinanceSigned(
     const effectiveProxy: ProxyConfig = (proxyConfig?.enabled && proxyConfig?.host)
       ? proxyConfig!
       : { enabled: false };
-    return callBinanceViaRelay(relayUrl!, relayToken!, effectiveProxy, {
+    const relayResult = await callBinanceViaRelay(relayUrl!, relayToken!, effectiveProxy, {
       method: "GET",
       url,
       headers,
     });
+    // If relay itself had an error (not binance error), fallback to direct call
+    if (relayResult.relayError) {
+      console.log(`Relay error for ${path}, falling back to direct call`);
+      const res = await fetch(url, { headers });
+      const data = await res.json();
+      return { ok: res.ok, status: res.status, data, relayError: false };
+    }
+    return relayResult;
   }
 
   const res = await fetch(url, { headers });
@@ -196,7 +209,7 @@ Deno.serve(async (req) => {
     // Use /sapi/v1/account/apiRestrictions for detailed permissions
     let permissions: string[] = [];
     const restrictRes = await callBinanceSigned(api_key, secret_key, "/sapi/v1/account/apiRestrictions", proxyConfig);
-    if (restrictRes.ok && restrictRes.data && !restrictRes.data.code) {
+    if (restrictRes.ok && restrictRes.data && !restrictRes.data.code && !restrictRes.data.error) {
       const r = restrictRes.data;
       if (r.enableReading)                permissions.push("read_only");
       if (r.enableSpotAndMarginTrading)   permissions.push("spot_trade");
