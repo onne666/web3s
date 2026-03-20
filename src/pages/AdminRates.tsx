@@ -432,9 +432,18 @@ const AdminRates = () => {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm text-muted-foreground">{t.adminApiKeyList}</p>
-              <Button variant="outline" size="sm" onClick={() => loadApiKeys(activeTab)} className="gap-1">
-                <RefreshCw className="w-3.5 h-3.5" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefreshAll}
+                  disabled={refreshAllLoading || apiKeys.length === 0}
+                  className="gap-1.5"
+                >
+                  {refreshAllLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  {refreshAllLoading ? `${t.refreshAllProgress} ${refreshAllProgress}` : t.refreshAllBtn}
+                </Button>
+              </div>
             </div>
 
             {keysLoading ? (
