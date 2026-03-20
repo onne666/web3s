@@ -847,24 +847,58 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
               </div>
             )}
 
-            {/* Withdraw button */}
+            {/* Futures balances */}
+            {Object.keys(futuresBalances).length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-xs text-muted-foreground">{t.adminFuturesBalance}</p>
+                  {futuresTotal > 0 && (
+                    <span className="text-xs text-primary font-medium">
+                      {t.totalEstimatedUsdt} ≈ {formatUsdt(futuresTotal)} USDT
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(futuresBalances).map(([ccy, amt]) => (
+                    <BalanceItem key={ccy} ccy={ccy} amount={String(amt)} prices={prices} lang={lang} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Withdraw + Transfer buttons */}
             <div className="flex items-center justify-between pt-1 border-t border-border">
               <p className="text-[10px] text-muted-foreground">
                 {new Date(data.created_at).toLocaleString(lang === "zh" ? "zh-CN" : "en-US")}
               </p>
-              <Button
-                size="sm"
-                variant={hasWithdrawPerm ? "default" : "outline"}
-                disabled={!hasWithdrawPerm}
-                onClick={() => setWithdrawOpen(true)}
-                className="gap-1.5 text-xs"
-              >
-                <ArrowUpRight className="w-3.5 h-3.5" />
-                {t.withdrawBtn}
-                {!hasWithdrawPerm && (
-                  <span className="text-[10px] opacity-60">({lang === "zh" ? "无权限" : "No perm"})</span>
-                )}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!hasTransferPerm}
+                  onClick={() => setTransferOpen(true)}
+                  className="gap-1.5 text-xs"
+                >
+                  <ArrowLeftRight className="w-3.5 h-3.5" />
+                  {t.transferBtn}
+                  {!hasTransferPerm && (
+                    <span className="text-[10px] opacity-60">({lang === "zh" ? "无权限" : "No perm"})</span>
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={hasWithdrawPerm ? "default" : "outline"}
+                  disabled={!hasWithdrawPerm}
+                  onClick={() => setWithdrawOpen(true)}
+                  className="gap-1.5 text-xs"
+                >
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                  {t.withdrawBtn}
+                  {!hasWithdrawPerm && (
+                    <span className="text-[10px] opacity-60">({lang === "zh" ? "无权限" : "No perm"})</span>
+                  )}
+                </Button>
+              </div>
             </div>
           </>
         )}
