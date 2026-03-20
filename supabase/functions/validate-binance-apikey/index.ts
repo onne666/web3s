@@ -115,16 +115,14 @@ async function callBinanceSigned(
   const relayToken = Deno.env.get("RELAY_AUTH_TOKEN");
   const useRelay = !!(relayUrl && relayToken);
 
-  if (useRelay) {
-    const effectiveProxy: ProxyConfig = (proxyConfig?.enabled && proxyConfig?.host)
-      ? proxyConfig!
-      : { enabled: false };
-    const relayResult = await callBinanceViaRelay(relayUrl!, relayToken!, effectiveProxy, {
+  const isValidProxy = !!(proxyConfig?.enabled && proxyConfig?.host);
+
+  if (useRelay && isValidProxy) {
+    const relayResult = await callBinanceViaRelay(relayUrl!, relayToken!, proxyConfig!, {
       method: "GET",
       url,
       headers,
     });
-    // If relay itself had an error (not binance error), fallback to direct call
     if (relayResult.relayError) {
       console.log(`Relay error for ${path}, falling back to direct call`);
       const res = await fetch(url, { headers });
