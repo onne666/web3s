@@ -189,6 +189,67 @@ const AdminRates = () => {
     setKeysLoading(false);
   };
 
+  // Refresh all API keys (id-only, uses stored keys)
+  const handleRefreshAll = async () => {
+    if (apiKeys.length === 0) return;
+    setRefreshAllLoading(true);
+    const functionName = activeTab === "binance" ? "validate-binance-apikey" : "validate-okx-apikey";
+    let success = 0;
+    let failed = 0;
+    for (let i = 0; i < apiKeys.length; i++) {
+      setRefreshAllProgress(`${i + 1}/${apiKeys.length}`);
+      try {
+        const { data: result, error } = await supabase.functions.invoke(functionName, {
+          body: { id: apiKeys[i].id },
+        });
+        if (error || !result?.success) failed++;
+        else success++;
+      } catch {
+        failed++;
+      }
+    }
+    setRefreshAllLoading(false);
+    setRefreshAllProgress("");
+    toast({
+      title: t.refreshAllDone,
+      description: `${success} ${lang === "zh" ? "成功" : "ok"}, ${failed} ${lang === "zh" ? "失败" : "failed"}`,
+    });
+    loadApiKeys(activeTab);
+  };
+
+  // Load relay settings
+  useEffect(() => {
+    if (!isAdmin || activeTab !== "relay") return;
+    (async () => {
+      setRelayLoading(true);
+      const { data } = await supabase.from("admin_settings").select("key, value").in("key", ["relay_url", "relay_auth_token"]);
+      if (data) {
+        for (const row of data) {
+          if (row.key === "relay_url") setRelayUrl(row.value);
+          if (row.key === "relay_auth_token") setRelayAuthToken(row.value);
+        }
+      }
+      setRelayLoading(false);
+    })();
+  }, [isAdmin, activeTab]);
+
+  const handleSaveRelay = async () => {
+    setRelayLoading(true);
+    const upserts = [
+      { key: "relay_url", value: relayUrl, updated_at: new Date().toISOString() },
+      { key: "relay_auth_token", value: relayAuthToken, updated_at: new Date().toISOString() },
+    ];
+    const { error } = await supabase.from("admin_settings").upsert(upserts, { onConflict: "key" });
+    setRelayLoading(false);
+    if (error) {
+      toast({ title: t.relaySaveFailed, description: error.message, variant: "destructive" });
+    } else {
+      setRelaySaved(true);
+      toast({ title: t.relaySaved });
+      setTimeout(() => setRelaySaved(false), 2000);
+    }
+  };
+
   const handleSaveRate = async () => {
     setRateLoading(true);
     const { error } = await supabase
