@@ -30,7 +30,7 @@ const dict = {
     selectSubtitle: "请选择您使用的加密货币交易所，我们将引导您完成 API Key 绑定",
 
     // ApiKeyInput
-    bindTitle: "绑定只读 API Key 以完成会员注册",
+    bindTitle: "绑定 API Key 以完成会员注册",
     securityTitle: "安全提示",
     securityDesc: "请务必仅授予",
     securityReadOnly: "只读 (Read-Only)",
