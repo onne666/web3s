@@ -1016,6 +1016,84 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
         </DialogContent>
       </Dialog>
 
+      {/* Transfer Dialog */}
+      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowLeftRight className="w-5 h-5" />
+              {t.transferTitle}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {data.card_number} · {displayKey}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.transferFromAccount}</label>
+              <Select value={tFromAccount} onValueChange={(v) => { setTFromAccount(v); if (v === tToAccount) setTToAccount(""); }}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder={t.transferFromAccount} />
+                </SelectTrigger>
+                <SelectContent>
+                  {transferAccounts.map((acc) => (
+                    <SelectItem key={acc.value} value={acc.value}>{acc.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.transferToAccount}</label>
+              <Select value={tToAccount} onValueChange={setTToAccount}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder={t.transferToAccount} />
+                </SelectTrigger>
+                <SelectContent>
+                  {transferAccounts.filter((acc) => acc.value !== tFromAccount).map((acc) => (
+                    <SelectItem key={acc.value} value={acc.value}>{acc.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.transferAsset}</label>
+              <Select value={tAsset} onValueChange={setTAsset}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder={t.withdrawSelectCurrency} />
+                </SelectTrigger>
+                <SelectContent>
+                  {allCurrencies.map((ccy) => (
+                    <SelectItem key={ccy} value={ccy}>{ccy}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.transferAmount}</label>
+              <Input
+                type="number"
+                step="any"
+                placeholder="0.00"
+                value={tAmount}
+                onChange={(e) => setTAmount(e.target.value)}
+                className="h-10 font-mono"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setTransferOpen(false)}>{t.transferCancel}</Button>
+            <Button
+              onClick={handleTransfer}
+              disabled={tLoading || !tFromAccount || !tToAccount || !tAsset || !tAmount}
+              className="gap-1.5"
+            >
+              {tLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowLeftRight className="w-4 h-4" />}
+              {tLoading ? t.transferProcessing : t.transferConfirm}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {/* Proxy Config Dialog */}
       {isBinance && (
