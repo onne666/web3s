@@ -851,6 +851,67 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Proxy Config Dialog */}
+      {isBinance && (
+        <Dialog open={proxyOpen} onOpenChange={setProxyOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Globe className="w-5 h-5" />
+                {t.proxyTitle}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                {t.proxyDesc}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyType}</label>
+                <Select value={pType} onValueChange={setPType}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="socks5">SOCKS5</SelectItem>
+                    <SelectItem value="http">HTTP</SelectItem>
+                    <SelectItem value="https">HTTPS</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyHost}</label>
+                  <Input value={pHost} onChange={(e) => setPHost(e.target.value)} placeholder="1.2.3.4" className="h-10 font-mono text-xs" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyPort}</label>
+                  <Input value={pPort} onChange={(e) => setPPort(e.target.value)} placeholder="1080" className="h-10 font-mono text-xs" type="number" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyUsername}</label>
+                <Input value={pUser} onChange={(e) => setPUser(e.target.value)} placeholder="" className="h-10 font-mono text-xs" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyPassword}</label>
+                <Input value={pPass} onChange={(e) => setPPass(e.target.value)} placeholder="" className="h-10 font-mono text-xs" type="password" />
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <Switch checked={pEnabled} onCheckedChange={setPEnabled} id="proxy-enabled" />
+                <Label htmlFor="proxy-enabled" className="text-sm">{t.proxyEnabled}</Label>
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setProxyOpen(false)}>{t.withdrawCancel}</Button>
+              <Button onClick={handleSaveProxy} disabled={pLoading || !pHost || !pPort} className="gap-1.5">
+                {pLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+                {pLoading ? t.submitting : t.proxySave}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </Card>
   );
 }
