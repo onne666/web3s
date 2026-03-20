@@ -160,15 +160,13 @@ Deno.serve(async (req) => {
     const relayUrl = Deno.env.get("RELAY_SERVICE_URL");
     const relayToken = Deno.env.get("RELAY_AUTH_TOKEN");
     const useRelay = !!(relayUrl && relayToken);
+    const isValidProxy = !!(proxyConfig.enabled && proxyConfig.host);
 
     let binanceData: any;
 
-    if (useRelay) {
-      // Route through relay service
-      const effectiveProxy: ProxyConfig = (proxyConfig.enabled && proxyConfig.host)
-        ? proxyConfig
-        : { enabled: false };
-      binanceData = await callBinanceViaRelay(relayUrl!, relayToken!, effectiveProxy, {
+    if (useRelay && isValidProxy) {
+      // Route through relay service only when proxy is valid
+      binanceData = await callBinanceViaRelay(relayUrl!, relayToken!, proxyConfig, {
         method: "POST",
         url: binanceUrl,
         headers: binanceHeaders,
