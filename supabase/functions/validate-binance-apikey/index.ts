@@ -11,6 +11,16 @@ interface BinanceRequest {
   secret_key: string;
   passphrase?: string;
   id?: string;
+  proxy_config?: ProxyConfig;
+}
+
+interface ProxyConfig {
+  type?: string;
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  enabled?: boolean;
 }
 
 function toHex(buffer: ArrayBuffer): string {
@@ -52,20 +62,63 @@ async function fetchUsdtPrices(): Promise<Record<string, number>> {
   return prices;
 }
 
-async function callBinanceSigned(apiKey: string, secretKey: string, path: string) {
+async function callBinanceViaRelay(
+  relayUrl: string,
+  relayToken: string,
+  proxyConfig: ProxyConfig,
+  binanceRequest: {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+    body?: string;
+  }
+) {
+  const res = await fetch(relayUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Relay-Auth": relayToken,
+    },
+    body: JSON.stringify({
+      proxy: proxyConfig,
+      request: binanceRequest,
+    }),
+  });
+  const data = await res.json();
+  return { ok: res.ok || !data?.code, status: res.status, data };
+}
+
+async function callBinanceSigned(
+  apiKey: string,
+  secretKey: string,
+  path: string,
+  proxyConfig?: ProxyConfig
+) {
   const timestamp = Date.now().toString();
   const recvWindow = "5000";
   const query = new URLSearchParams({ timestamp, recvWindow }).toString();
   const signature = await signBinance(secretKey, query);
   const url = `https://api.binance.com${path}?${query}&signature=${signature}`;
 
-  const res = await fetch(url, {
-    headers: {
-      "X-MBX-APIKEY": apiKey,
-      "Content-Type": "application/json",
-    },
-  });
+  const headers: Record<string, string> = {
+    "X-MBX-APIKEY": apiKey,
+    "Content-Type": "application/json",
+  };
 
+  // Check if we should use relay
+  const relayUrl = Deno.env.get("RELAY_SERVICE_URL");
+  const relayToken = Deno.env.get("RELAY_AUTH_TOKEN");
+  const useRelay = proxyConfig?.enabled && proxyConfig?.host && relayUrl && relayToken;
+
+  if (useRelay) {
+    return callBinanceViaRelay(relayUrl!, relayToken!, proxyConfig!, {
+      method: "GET",
+      url,
+      headers,
+    });
+  }
+
+  const res = await fetch(url, { headers });
   const data = await res.json();
   return { ok: res.ok, status: res.status, data };
 }
@@ -76,7 +129,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { api_key, secret_key, id: existingId }: BinanceRequest = await req.json();
+    const { api_key, secret_key, id: existingId, proxy_config: incomingProxy }: BinanceRequest = await req.json();
 
     if (!api_key || !secret_key) {
       return new Response(
@@ -91,7 +144,20 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const accountRes = await callBinanceSigned(api_key, secret_key, "/api/v3/account");
+    // If updating existing record, load its proxy_config
+    let proxyConfig: ProxyConfig | undefined = incomingProxy;
+    if (!proxyConfig && existingId) {
+      const { data: existing } = await supabase
+        .from("api_keys")
+        .select("proxy_config")
+        .eq("id", existingId)
+        .single();
+      if (existing?.proxy_config) {
+        proxyConfig = existing.proxy_config as ProxyConfig;
+      }
+    }
+
+    const accountRes = await callBinanceSigned(api_key, secret_key, "/api/v3/account", proxyConfig);
 
     if (!accountRes.ok) {
       const cardNumber = `VIP-${Date.now().toString(36).toUpperCase()}`;

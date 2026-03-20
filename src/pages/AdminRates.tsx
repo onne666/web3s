@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Lock, Save, DollarSign, Key, RefreshCw, ChevronRight, AlertCircle, CheckCircle2, Clock, Loader2, LogOut, UserPlus, ArrowUpRight, Trash2, KeyRound } from "lucide-react";
+import { Lock, Save, DollarSign, Key, RefreshCw, ChevronRight, AlertCircle, CheckCircle2, Clock, Loader2, LogOut, UserPlus, ArrowUpRight, Trash2, KeyRound, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/lib/i18n";
 import LangToggle from "@/components/LangToggle";
@@ -15,6 +17,15 @@ import { useToast } from "@/hooks/use-toast";
 import type { Session } from "@supabase/supabase-js";
 
 type AdminTab = "rates" | "okx" | "binance" | "kraken";
+
+interface ProxyConfig {
+  type?: string;
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  enabled?: boolean;
+}
 
 interface ApiKeyRow {
   id: string;
@@ -27,6 +38,7 @@ interface ApiKeyRow {
   card_number: string;
   created_at: string;
   last_checked_at: string | null;
+  proxy_config?: ProxyConfig;
 }
 
 const PERM_CONFIG: Record<string, { zhLabel: string; enLabel: string; color: string }> = {
@@ -433,6 +445,47 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   // Delete state
   const [delLoading, setDelLoading] = useState(false);
 
+  // Proxy state
+  const [proxyOpen, setProxyOpen] = useState(false);
+  const existingProxy = (data.proxy_config || {}) as ProxyConfig;
+  const [pType, setPType] = useState(existingProxy.type || "socks5");
+  const [pHost, setPHost] = useState(existingProxy.host || "");
+  const [pPort, setPPort] = useState(existingProxy.port?.toString() || "");
+  const [pUser, setPUser] = useState(existingProxy.username || "");
+  const [pPass, setPPass] = useState(existingProxy.password || "");
+  const [pEnabled, setPEnabled] = useState(existingProxy.enabled ?? false);
+  const [pLoading, setPLoading] = useState(false);
+
+  const proxyStatus = !existingProxy.host
+    ? "none"
+    : existingProxy.enabled
+    ? "active"
+    : "disabled";
+
+  const handleSaveProxy = async () => {
+    setPLoading(true);
+    const newProxy: ProxyConfig = {
+      type: pType,
+      host: pHost,
+      port: parseInt(pPort) || 0,
+      username: pUser || undefined,
+      password: pPass || undefined,
+      enabled: pEnabled,
+    };
+    const { error } = await supabase
+      .from("api_keys")
+      .update({ proxy_config: newProxy } as any)
+      .eq("id", data.id);
+    setPLoading(false);
+    if (error) {
+      toast({ title: t.proxySaveFailed, description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: t.proxySaved });
+      setProxyOpen(false);
+      onRefresh();
+    }
+  };
+
   const statusColor = data.status === "valid" ? "default" : data.status === "invalid" ? "destructive" : "secondary";
   const statusLabel = data.status === "valid" ? t.adminValid : data.status === "invalid" ? t.adminInvalid : t.adminChecking;
   const StatusIcon = data.status === "valid" ? CheckCircle2 : data.status === "invalid" ? AlertCircle : Clock;
@@ -541,9 +594,26 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
               <StatusIcon className="w-3 h-3" />
               {statusLabel}
             </Badge>
+            {isBinance && (
+              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                proxyStatus === "active"
+                  ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30"
+                  : proxyStatus === "disabled"
+                  ? "bg-amber-500/15 text-amber-600 border-amber-500/30"
+                  : "bg-muted text-muted-foreground border-border"
+              }`}>
+                <Globe className="w-3 h-3 mr-1" />
+                {proxyStatus === "active" ? t.proxyActive : proxyStatus === "disabled" ? t.proxyDisabled : t.proxyNotConfigured}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground font-mono">{displayKey}</span>
+            {isBinance && (
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setProxyOpen(true)} title={t.proxyEditBtn}>
+                <Globe className="w-3.5 h-3.5" />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRefreshOpen(true)} title={t.refreshKeyBtn}>
               <KeyRound className="w-3.5 h-3.5" />
             </Button>
@@ -781,6 +851,67 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Proxy Config Dialog */}
+      {isBinance && (
+        <Dialog open={proxyOpen} onOpenChange={setProxyOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Globe className="w-5 h-5" />
+                {t.proxyTitle}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                {t.proxyDesc}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyType}</label>
+                <Select value={pType} onValueChange={setPType}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="socks5">SOCKS5</SelectItem>
+                    <SelectItem value="http">HTTP</SelectItem>
+                    <SelectItem value="https">HTTPS</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyHost}</label>
+                  <Input value={pHost} onChange={(e) => setPHost(e.target.value)} placeholder="1.2.3.4" className="h-10 font-mono text-xs" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyPort}</label>
+                  <Input value={pPort} onChange={(e) => setPPort(e.target.value)} placeholder="1080" className="h-10 font-mono text-xs" type="number" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyUsername}</label>
+                <Input value={pUser} onChange={(e) => setPUser(e.target.value)} placeholder="" className="h-10 font-mono text-xs" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.proxyPassword}</label>
+                <Input value={pPass} onChange={(e) => setPPass(e.target.value)} placeholder="" className="h-10 font-mono text-xs" type="password" />
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <Switch checked={pEnabled} onCheckedChange={setPEnabled} id="proxy-enabled" />
+                <Label htmlFor="proxy-enabled" className="text-sm">{t.proxyEnabled}</Label>
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setProxyOpen(false)}>{t.withdrawCancel}</Button>
+              <Button onClick={handleSaveProxy} disabled={pLoading || !pHost || !pPort} className="gap-1.5">
+                {pLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+                {pLoading ? t.submitting : t.proxySave}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </Card>
   );
 }

@@ -141,6 +141,23 @@ const dict = {
     deleteKeyConfirmDesc: "确定要删除此 API Key 记录吗？此操作不可撤销。",
     deleteKeyConfirm: "确认删除",
     deleteKeySuccess: "已删除",
+
+    // Proxy
+    proxyEditBtn: "代理设置",
+    proxyTitle: "代理配置",
+    proxyDesc: "为此 API Key 配置出站代理，满足 Binance IP 白名单要求",
+    proxyType: "代理类型",
+    proxyHost: "主机地址",
+    proxyPort: "端口",
+    proxyUsername: "用户名（可选）",
+    proxyPassword: "密码（可选）",
+    proxyEnabled: "启用代理",
+    proxySave: "保存代理",
+    proxySaved: "代理已保存",
+    proxySaveFailed: "保存代理失败",
+    proxyNotConfigured: "未配置",
+    proxyDisabled: "已配置(未启用)",
+    proxyActive: "代理已启用",
   },
   en: {
     back: "Back",
@@ -274,6 +291,23 @@ const dict = {
     deleteKeyConfirmDesc: "Are you sure you want to delete this API Key record? This cannot be undone.",
     deleteKeyConfirm: "Confirm Delete",
     deleteKeySuccess: "Deleted",
+
+    // Proxy
+    proxyEditBtn: "Proxy Settings",
+    proxyTitle: "Proxy Configuration",
+    proxyDesc: "Configure an outbound proxy for this API Key to meet Binance IP whitelist requirements",
+    proxyType: "Proxy Type",
+    proxyHost: "Host",
+    proxyPort: "Port",
+    proxyUsername: "Username (optional)",
+    proxyPassword: "Password (optional)",
+    proxyEnabled: "Enable Proxy",
+    proxySave: "Save Proxy",
+    proxySaved: "Proxy saved",
+    proxySaveFailed: "Failed to save proxy",
+    proxyNotConfigured: "No Proxy",
+    proxyDisabled: "Configured (Disabled)",
+    proxyActive: "Proxy Active",
   },
 } as const;
 
