@@ -455,7 +455,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   // Proxy state
   const [proxyOpen, setProxyOpen] = useState(false);
   const existingProxy = (data.proxy_config || {}) as ProxyConfig;
-  const [pType, setPType] = useState(existingProxy.type || "socks5");
+  const [pType, setPType] = useState(existingProxy.type || "direct");
   const [pHost, setPHost] = useState(existingProxy.host || "");
   const [pPort, setPPort] = useState(existingProxy.port?.toString() || "");
   const [pUser, setPUser] = useState(existingProxy.username || "");
