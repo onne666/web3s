@@ -688,6 +688,36 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
     setWLoading(false);
   };
 
+  const handleTransfer = async () => {
+    if (!tFromAccount || !tToAccount || !tAsset || !tAmount) return;
+    setTLoading(true);
+    const functionName = isBinance ? "transfer-binance" : "transfer-okx";
+    try {
+      const { data: result, error } = await supabase.functions.invoke(functionName, {
+        body: {
+          api_key_id: data.id,
+          ...(isBinance ? { asset: tAsset } : { currency: tAsset }),
+          amount: tAmount,
+          from_account: tFromAccount,
+          to_account: tToAccount,
+        },
+      });
+      if (error) {
+        toast({ title: t.transferFailed, description: error.message, variant: "destructive" });
+      } else if (result?.success) {
+        toast({ title: t.transferSuccess });
+        setTransferOpen(false);
+        setTFromAccount(""); setTToAccount(""); setTAsset(""); setTAmount("");
+        onRefresh();
+      } else {
+        toast({ title: t.transferFailed, description: result?.error || "Unknown error", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: t.transferFailed, description: err.message, variant: "destructive" });
+    }
+    setTLoading(false);
+  };
+
   const handleQuickRefresh = async () => {
     setRLoading(true);
     const functionName = isBinance ? "validate-binance-apikey" : "validate-okx-apikey";
