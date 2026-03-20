@@ -549,6 +549,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   const permissions = rawPerms.flatMap((p) => p.split(",").map((s) => s.trim())).filter(Boolean);
   const tradingBalances = info.tradingBalances || {};
   const fundingBalances = info.fundingBalances || {};
+  const futuresBalances = info.futuresBalances || {};
   const prices = info.prices || {};
   const displayKey = data.display_key || data.api_key;
   const isBinance = data.exchange === "binance";
@@ -560,6 +561,14 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   const [wAmount, setWAmount] = useState("");
   const [wChain, setWChain] = useState("");
   const [wLoading, setWLoading] = useState(false);
+
+  // Transfer state
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [tFromAccount, setTFromAccount] = useState("");
+  const [tToAccount, setTToAccount] = useState("");
+  const [tAsset, setTAsset] = useState("");
+  const [tAmount, setTAmount] = useState("");
+  const [tLoading, setTLoading] = useState(false);
 
   // Quick refresh state (id-only)
   const [rLoading, setRLoading] = useState(false);
@@ -617,9 +626,22 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   const StatusIcon = data.status === "valid" ? CheckCircle2 : data.status === "invalid" ? AlertCircle : Clock;
 
   const hasWithdrawPerm = permissions.includes("withdraw");
+  const hasTransferPerm = isBinance ? permissions.includes("universal_transfer") : permissions.includes("trade");
 
-  // Compute all currencies from both balances
-  const allCurrencies = [...new Set([...Object.keys(tradingBalances), ...Object.keys(fundingBalances)])];
+  // Compute all currencies from all balances
+  const allCurrencies = [...new Set([...Object.keys(tradingBalances), ...Object.keys(fundingBalances), ...Object.keys(futuresBalances)])];
+
+  // Transfer account options
+  const binanceAccounts = [
+    { value: "spot", label: t.transferSpot },
+    { value: "funding", label: t.transferFunding },
+    { value: "futures", label: t.transferFutures },
+  ];
+  const okxAccounts = [
+    { value: "trading", label: t.transferTrading },
+    { value: "funding", label: t.transferFunding },
+  ];
+  const transferAccounts = isBinance ? binanceAccounts : okxAccounts;
 
   // Compute total USDT estimate
   const computeTotalUsdt = (balances: Record<string, string>) => {
@@ -633,6 +655,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
 
   const tradingTotal = computeTotalUsdt(tradingBalances);
   const fundingTotal = computeTotalUsdt(fundingBalances);
+  const futuresTotal = computeTotalUsdt(futuresBalances);
 
   const handleWithdraw = async () => {
     if (!wCurrency || !wAddress || !wAmount || !wChain) return;
