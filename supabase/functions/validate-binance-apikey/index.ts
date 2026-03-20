@@ -113,13 +113,15 @@ async function callBinanceSigned(
   secretKey: string,
   path: string,
   proxyConfig?: ProxyConfig,
-  supabaseClient?: any
+  supabaseClient?: any,
+  method: string = "GET",
+  baseUrl: string = "https://api.binance.com"
 ) {
   const timestamp = Date.now().toString();
   const recvWindow = "5000";
   const query = new URLSearchParams({ timestamp, recvWindow }).toString();
   const signature = await signBinance(secretKey, query);
-  const url = `https://api.binance.com${path}?${query}&signature=${signature}`;
+  const url = `${baseUrl}${path}?${query}&signature=${signature}`;
 
   const headers: Record<string, string> = {
     "X-MBX-APIKEY": apiKey,
@@ -137,20 +139,20 @@ async function callBinanceSigned(
       : { type: "direct" as const };
 
     const relayResult = await callBinanceViaRelay(relayUrl!, relayToken!, relayProxy as ProxyConfig, {
-      method: "GET",
+      method,
       url,
       headers,
     });
     if (relayResult.relayError) {
       console.log(`Relay error for ${path}, falling back to direct call`);
-      const res = await fetch(url, { headers });
+      const res = await fetch(url, { method, headers });
       const data = await res.json();
       return { ok: res.ok, status: res.status, data, relayError: false };
     }
     return relayResult;
   }
 
-  const res = await fetch(url, { headers });
+  const res = await fetch(url, { method, headers });
   const data = await res.json();
   return { ok: res.ok, status: res.status, data };
 }
