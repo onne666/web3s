@@ -83,7 +83,7 @@ const ApiKeyInput = () => {
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center gap-3 mb-2">
-          {exchange?.logo.startsWith("http") ? (
+          {exchange && exchange.logo.length > 2 ? (
             <img src={exchange.logo} alt={exchange.name} className="w-8 h-8 object-contain" />
           ) : (
             <span className="text-2xl">{exchange?.logo}</span>
