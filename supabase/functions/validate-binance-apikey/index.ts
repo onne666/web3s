@@ -85,8 +85,12 @@ async function callBinanceViaRelay(
     }),
   });
   const data = await res.json();
-  const isError = !!data?.error || !!data?.code;
-  return { ok: (res.ok && !isError) || (!res.ok && !isError), status: res.status, data };
+  // Check if response contains actual binance data (not relay/proxy error)
+  if (data?.error && !data?.code && !data?.balances && !data?.ipRestrict && !data?.enableReading) {
+    // Relay/proxy error, not a binance error
+    return { ok: false, status: res.status, data, relayError: true };
+  }
+  return { ok: res.ok || !data?.code, status: res.status, data, relayError: false };
 }
 
 async function callBinanceSigned(
