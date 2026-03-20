@@ -680,7 +680,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
       } else if (result?.success) {
         toast({ title: t.withdrawSuccess });
         setWithdrawOpen(false);
-        setWCurrency(""); setWAddress(""); setWAmount(""); setWChain("");
+        setWCurrency(""); setWAddress(""); setWAmount(""); setWChain(""); setWWalletType("0");
       } else {
         toast({ title: t.withdrawFailed, description: result?.error || "Unknown error", variant: "destructive" });
       }
