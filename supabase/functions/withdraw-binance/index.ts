@@ -34,6 +34,23 @@ interface ProxyConfig {
   enabled?: boolean;
 }
 
+async function getRelayConfig(supabase: any): Promise<{ relayUrl: string | null; relayToken: string | null }> {
+  try {
+    const { data } = await supabase.from("admin_settings").select("key, value").in("key", ["relay_url", "relay_auth_token"]);
+    const map: Record<string, string> = {};
+    if (data) for (const row of data) map[row.key] = row.value;
+    return {
+      relayUrl: map["relay_url"] || Deno.env.get("RELAY_SERVICE_URL") || null,
+      relayToken: map["relay_auth_token"] || Deno.env.get("RELAY_AUTH_TOKEN") || null,
+    };
+  } catch {
+    return {
+      relayUrl: Deno.env.get("RELAY_SERVICE_URL") || null,
+      relayToken: Deno.env.get("RELAY_AUTH_TOKEN") || null,
+    };
+  }
+}
+
 async function callBinanceViaRelay(
   relayUrl: string,
   relayToken: string,
@@ -155,16 +172,13 @@ Deno.serve(async (req) => {
       "Content-Type": "application/x-www-form-urlencoded",
     };
 
-    // Check if proxy/relay is configured
     const proxyConfig = (keyRow.proxy_config || {}) as ProxyConfig;
-    const relayUrl = Deno.env.get("RELAY_SERVICE_URL");
-    const relayToken = Deno.env.get("RELAY_AUTH_TOKEN");
+    const { relayUrl, relayToken } = await getRelayConfig(supabase);
     const useRelay = !!(relayUrl && relayToken);
 
     let binanceData: any;
 
     if (useRelay) {
-      // Always route through relay when env vars are set
       const relayProxy = (proxyConfig.enabled && proxyConfig.host)
         ? proxyConfig
         : { type: "direct" as const };
@@ -176,7 +190,6 @@ Deno.serve(async (req) => {
         body,
       });
     } else {
-      // Direct call (no relay configured)
       const binanceRes = await fetch(binanceUrl, {
         method: "POST",
         headers: binanceHeaders,
@@ -192,7 +205,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // For relay responses, check for error
     if (binanceData?.code || binanceData?.error) {
       return new Response(
         JSON.stringify({ success: false, error: binanceData?.msg || binanceData?.error || "Withdrawal failed", data: binanceData }),

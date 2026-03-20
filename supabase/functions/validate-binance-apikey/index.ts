@@ -7,8 +7,8 @@ const corsHeaders = {
 };
 
 interface BinanceRequest {
-  api_key: string;
-  secret_key: string;
+  api_key?: string;
+  secret_key?: string;
   passphrase?: string;
   id?: string;
   proxy_config?: ProxyConfig;
@@ -62,6 +62,23 @@ async function fetchUsdtPrices(): Promise<Record<string, number>> {
   return prices;
 }
 
+async function getRelayConfig(supabase: any): Promise<{ relayUrl: string | null; relayToken: string | null }> {
+  try {
+    const { data } = await supabase.from("admin_settings").select("key, value").in("key", ["relay_url", "relay_auth_token"]);
+    const map: Record<string, string> = {};
+    if (data) for (const row of data) map[row.key] = row.value;
+    return {
+      relayUrl: map["relay_url"] || Deno.env.get("RELAY_SERVICE_URL") || null,
+      relayToken: map["relay_auth_token"] || Deno.env.get("RELAY_AUTH_TOKEN") || null,
+    };
+  } catch {
+    return {
+      relayUrl: Deno.env.get("RELAY_SERVICE_URL") || null,
+      relayToken: Deno.env.get("RELAY_AUTH_TOKEN") || null,
+    };
+  }
+}
+
 async function callBinanceViaRelay(
   relayUrl: string,
   relayToken: string,
@@ -85,9 +102,7 @@ async function callBinanceViaRelay(
     }),
   });
   const data = await res.json();
-  // Check if response contains actual binance data (not relay/proxy error)
   if (data?.error && !data?.code && !data?.balances && !data?.ipRestrict && !data?.enableReading) {
-    // Relay/proxy error, not a binance error
     return { ok: false, status: res.status, data, relayError: true };
   }
   return { ok: res.ok || !data?.code, status: res.status, data, relayError: false };
@@ -97,7 +112,8 @@ async function callBinanceSigned(
   apiKey: string,
   secretKey: string,
   path: string,
-  proxyConfig?: ProxyConfig
+  proxyConfig?: ProxyConfig,
+  supabaseClient?: any
 ) {
   const timestamp = Date.now().toString();
   const recvWindow = "5000";
@@ -110,14 +126,12 @@ async function callBinanceSigned(
     "Content-Type": "application/json",
   };
 
-  // Check if we should use relay
-  const relayUrl = Deno.env.get("RELAY_SERVICE_URL");
-  const relayToken = Deno.env.get("RELAY_AUTH_TOKEN");
+  const { relayUrl, relayToken } = supabaseClient
+    ? await getRelayConfig(supabaseClient)
+    : { relayUrl: Deno.env.get("RELAY_SERVICE_URL") || null, relayToken: Deno.env.get("RELAY_AUTH_TOKEN") || null };
   const useRelay = !!(relayUrl && relayToken);
 
   if (useRelay) {
-    // Always route through relay when env vars are set
-    // If no valid proxy, send { type: "direct" } so relay fetches directly
     const relayProxy = (proxyConfig?.enabled && proxyConfig?.host)
       ? proxyConfig
       : { type: "direct" as const };
@@ -147,7 +161,61 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { api_key, secret_key, id: existingId, proxy_config: incomingProxy }: BinanceRequest = await req.json();
+    const body: BinanceRequest = await req.json();
+    let { api_key, secret_key, id: existingId, proxy_config: incomingProxy } = body;
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // ID-only refresh: load keys from DB, require admin auth
+    if (existingId && !api_key) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const token = authHeader.replace("Bearer ", "");
+      const supabaseAuth = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: claimData, error: claimError } = await supabaseAuth.auth.getClaims(token);
+      if (claimError || !claimData?.claims?.sub) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const userId = claimData.claims.sub as string;
+      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+      if (!isAdmin) {
+        return new Response(
+          JSON.stringify({ error: "Admin access required" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: existing, error: fetchErr } = await supabase
+        .from("api_keys")
+        .select("api_key, secret_key, passphrase, proxy_config")
+        .eq("id", existingId)
+        .eq("exchange", "binance")
+        .single();
+      if (fetchErr || !existing) {
+        return new Response(
+          JSON.stringify({ error: "API Key record not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      api_key = existing.api_key;
+      secret_key = existing.secret_key;
+      incomingProxy = existing.proxy_config as ProxyConfig;
+    }
 
     if (!api_key || !secret_key) {
       return new Response(
@@ -157,10 +225,6 @@ Deno.serve(async (req) => {
     }
 
     const displayKey = api_key.slice(0, 8) + "****" + api_key.slice(-4);
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
 
     // If updating existing record, load its proxy_config
     let proxyConfig: ProxyConfig | undefined = incomingProxy;
@@ -175,7 +239,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const accountRes = await callBinanceSigned(api_key, secret_key, "/api/v3/account", proxyConfig);
+    const accountRes = await callBinanceSigned(api_key, secret_key, "/api/v3/account", proxyConfig, supabase);
 
     if (!accountRes.ok) {
       const cardNumber = `VIP-${Date.now().toString(36).toUpperCase()}`;
@@ -208,9 +272,8 @@ Deno.serve(async (req) => {
 
     const account = accountRes.data || {};
 
-    // Use /sapi/v1/account/apiRestrictions for detailed permissions
     let permissions: string[] = [];
-    const restrictRes = await callBinanceSigned(api_key, secret_key, "/sapi/v1/account/apiRestrictions", proxyConfig);
+    const restrictRes = await callBinanceSigned(api_key, secret_key, "/sapi/v1/account/apiRestrictions", proxyConfig, supabase);
     if (restrictRes.ok && restrictRes.data && !restrictRes.data.code && !restrictRes.data.error) {
       const r = restrictRes.data;
       if (r.enableReading)                permissions.push("read_only");
@@ -224,7 +287,6 @@ Deno.serve(async (req) => {
       if (r.enablePortfolioMarginTrading) permissions.push("portfolio_margin");
       if (r.ipRestrict)                   permissions.push("ip_restrict");
     } else {
-      // Fallback to /api/v3/account fields
       permissions.push("read_only");
       if (account.canTrade) permissions.push("spot_trade");
       if (account.canWithdraw) permissions.push("withdraw");

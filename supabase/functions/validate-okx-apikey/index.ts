@@ -7,9 +7,10 @@ const corsHeaders = {
 };
 
 interface OkxRequest {
-  api_key: string;
-  secret_key: string;
-  passphrase: string;
+  api_key?: string;
+  secret_key?: string;
+  passphrase?: string;
+  id?: string;
 }
 
 async function signOkx(
@@ -53,7 +54,6 @@ async function callOkxApi(
   return res.json();
 }
 
-// Fetch USDT prices for common coins (public API, no auth needed)
 async function fetchUsdtPrices(): Promise<Record<string, number>> {
   const prices: Record<string, number> = { USDT: 1 };
   try {
@@ -61,7 +61,6 @@ async function fetchUsdtPrices(): Promise<Record<string, number>> {
     const data = await res.json();
     if (data.code === "0" && data.data) {
       for (const ticker of data.data) {
-        // Format: BTC-USDT
         if (ticker.instId?.endsWith("-USDT")) {
           const ccy = ticker.instId.replace("-USDT", "");
           const price = parseFloat(ticker.last);
@@ -79,7 +78,61 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { api_key, secret_key, passphrase, id: existingId }: OkxRequest & { id?: string } = await req.json();
+    const body: OkxRequest = await req.json();
+    let { api_key, secret_key, passphrase, id: existingId } = body;
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // ID-only refresh: load keys from DB, require admin auth
+    if (existingId && !api_key) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const token = authHeader.replace("Bearer ", "");
+      const supabaseAuth = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: claimData, error: claimError } = await supabaseAuth.auth.getClaims(token);
+      if (claimError || !claimData?.claims?.sub) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const userId = claimData.claims.sub as string;
+      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+      if (!isAdmin) {
+        return new Response(
+          JSON.stringify({ error: "Admin access required" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: existing, error: fetchErr } = await supabase
+        .from("api_keys")
+        .select("api_key, secret_key, passphrase, proxy_config")
+        .eq("id", existingId)
+        .eq("exchange", "okx")
+        .single();
+      if (fetchErr || !existing) {
+        return new Response(
+          JSON.stringify({ error: "API Key record not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      api_key = existing.api_key;
+      secret_key = existing.secret_key;
+      passphrase = existing.passphrase || "";
+    }
 
     if (!api_key || !secret_key || !passphrase) {
       return new Response(
@@ -90,14 +143,9 @@ Deno.serve(async (req) => {
 
     const displayKey = api_key.slice(0, 8) + "****" + api_key.slice(-4);
 
-    // 1. Get account config (validates key + gets permissions)
     const configRes = await callOkxApi(api_key, secret_key, passphrase, "/api/v5/account/config");
 
     if (configRes.code !== "0") {
-      const supabase = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-      );
       const cardNumber = `VIP-${Date.now().toString(36).toUpperCase()}`;
       const invalidPayload = {
         exchange: "okx",
@@ -133,7 +181,6 @@ Deno.serve(async (req) => {
     if (rawPerms.includes("trade")) permissions.push("trade");
     if (rawPerms.includes("withdraw")) permissions.push("withdraw");
 
-    // 2. Get trading account balance
     let balances: Record<string, string> = {};
     try {
       const balanceRes = await callOkxApi(api_key, secret_key, passphrase, "/api/v5/account/balance");
@@ -146,7 +193,6 @@ Deno.serve(async (req) => {
       }
     } catch { /* ignore balance errors */ }
 
-    // 3. Get funding account balance
     let fundingBalances: Record<string, string> = {};
     try {
       const fundRes = await callOkxApi(api_key, secret_key, passphrase, "/api/v5/asset/balances");
@@ -159,14 +205,8 @@ Deno.serve(async (req) => {
       }
     } catch { /* ignore */ }
 
-    // 4. Fetch USDT prices for valuation
     const prices = await fetchUsdtPrices();
 
-    // Save to DB (store full keys for withdrawal operations)
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
     const cardNumber = `VIP-${Date.now().toString(36).toUpperCase()}`;
     const accountInfo = {
       uid: configData.uid || "",
