@@ -87,6 +87,14 @@ const AdminRates = () => {
   // API keys state
   const [apiKeys, setApiKeys] = useState<ApiKeyRow[]>([]);
   const [keysLoading, setKeysLoading] = useState(false);
+  const [refreshAllLoading, setRefreshAllLoading] = useState(false);
+  const [refreshAllProgress, setRefreshAllProgress] = useState("");
+
+  // Relay settings state
+  const [relayUrl, setRelayUrl] = useState("");
+  const [relayAuthToken, setRelayAuthToken] = useState("");
+  const [relayLoading, setRelayLoading] = useState(false);
+  const [relaySaved, setRelaySaved] = useState(false);
 
   // Auth state listener
   useEffect(() => {
