@@ -90,7 +90,7 @@ const ApiKeyInput = () => {
           )}
           <h1 className="text-2xl font-bold">{exchange?.name}</h1>
         </div>
-        <p className="text-sm text-muted-foreground mb-6">{t.bindTitle}</p>
+        <p className="text-sm text-muted-foreground mb-6">{t.apiKeyBindTitle}</p>
       </motion.div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="glass-panel p-4 mb-6 flex items-start gap-3">
