@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.withdraw-binance]
 verify_jwt = false
+
+[functions.transfer-binance]
+verify_jwt = false
+
+[functions.transfer-okx]
+verify_jwt = false

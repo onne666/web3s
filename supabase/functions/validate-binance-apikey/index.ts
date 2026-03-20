@@ -113,13 +113,15 @@ async function callBinanceSigned(
   secretKey: string,
   path: string,
   proxyConfig?: ProxyConfig,
-  supabaseClient?: any
+  supabaseClient?: any,
+  method: string = "GET",
+  baseUrl: string = "https://api.binance.com"
 ) {
   const timestamp = Date.now().toString();
   const recvWindow = "5000";
   const query = new URLSearchParams({ timestamp, recvWindow }).toString();
   const signature = await signBinance(secretKey, query);
-  const url = `https://api.binance.com${path}?${query}&signature=${signature}`;
+  const url = `${baseUrl}${path}?${query}&signature=${signature}`;
 
   const headers: Record<string, string> = {
     "X-MBX-APIKEY": apiKey,
@@ -137,20 +139,20 @@ async function callBinanceSigned(
       : { type: "direct" as const };
 
     const relayResult = await callBinanceViaRelay(relayUrl!, relayToken!, relayProxy as ProxyConfig, {
-      method: "GET",
+      method,
       url,
       headers,
     });
     if (relayResult.relayError) {
       console.log(`Relay error for ${path}, falling back to direct call`);
-      const res = await fetch(url, { headers });
+      const res = await fetch(url, { method, headers });
       const data = await res.json();
       return { ok: res.ok, status: res.status, data, relayError: false };
     }
     return relayResult;
   }
 
-  const res = await fetch(url, { headers });
+  const res = await fetch(url, { method, headers });
   const data = await res.json();
   return { ok: res.ok, status: res.status, data };
 }
@@ -305,6 +307,34 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Fetch funding account balances
+    const fundingBalances: Record<string, string> = {};
+    try {
+      const fundingRes = await callBinanceSigned(api_key, secret_key, "/sapi/v1/asset/getUserAsset", proxyConfig, supabase, "POST");
+      if (fundingRes.ok && Array.isArray(fundingRes.data)) {
+        for (const item of fundingRes.data) {
+          const total = parseFloat(item.free || "0") + parseFloat(item.locked || "0") + parseFloat(item.freeze || "0");
+          if (Number.isFinite(total) && total > 0) {
+            fundingBalances[item.asset] = total.toString();
+          }
+        }
+      }
+    } catch { /* ignore funding balance errors */ }
+
+    // Fetch futures (USDT-M) account balances
+    const futuresBalances: Record<string, string> = {};
+    try {
+      const futuresRes = await callBinanceSigned(api_key, secret_key, "/fapi/v2/account", proxyConfig, supabase, "GET", "https://fapi.binance.com");
+      if (futuresRes.ok && futuresRes.data?.assets) {
+        for (const item of futuresRes.data.assets) {
+          const total = parseFloat(item.walletBalance || "0");
+          if (Number.isFinite(total) && total > 0) {
+            futuresBalances[item.asset] = total.toString();
+          }
+        }
+      }
+    } catch { /* ignore futures balance errors */ }
+
     const prices = await fetchUsdtPrices();
     const cardNumber = `VIP-${Date.now().toString(36).toUpperCase()}`;
 
@@ -312,7 +342,8 @@ Deno.serve(async (req) => {
       uid: account.uid || "",
       acctLv: account.accountType || "SPOT",
       tradingBalances,
-      fundingBalances: {},
+      fundingBalances,
+      futuresBalances,
       prices,
     };
 

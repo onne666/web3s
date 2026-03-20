@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Lock, Save, DollarSign, Key, RefreshCw, ChevronRight, AlertCircle, CheckCircle2, Clock, Loader2, LogOut, UserPlus, ArrowUpRight, Trash2, Globe, Server } from "lucide-react";
+import { Lock, Save, DollarSign, Key, RefreshCw, ChevronRight, AlertCircle, CheckCircle2, Clock, Loader2, LogOut, UserPlus, ArrowUpRight, Trash2, Globe, Server, ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -549,6 +549,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   const permissions = rawPerms.flatMap((p) => p.split(",").map((s) => s.trim())).filter(Boolean);
   const tradingBalances = info.tradingBalances || {};
   const fundingBalances = info.fundingBalances || {};
+  const futuresBalances = info.futuresBalances || {};
   const prices = info.prices || {};
   const displayKey = data.display_key || data.api_key;
   const isBinance = data.exchange === "binance";
@@ -560,6 +561,14 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   const [wAmount, setWAmount] = useState("");
   const [wChain, setWChain] = useState("");
   const [wLoading, setWLoading] = useState(false);
+
+  // Transfer state
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [tFromAccount, setTFromAccount] = useState("");
+  const [tToAccount, setTToAccount] = useState("");
+  const [tAsset, setTAsset] = useState("");
+  const [tAmount, setTAmount] = useState("");
+  const [tLoading, setTLoading] = useState(false);
 
   // Quick refresh state (id-only)
   const [rLoading, setRLoading] = useState(false);
@@ -617,9 +626,22 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   const StatusIcon = data.status === "valid" ? CheckCircle2 : data.status === "invalid" ? AlertCircle : Clock;
 
   const hasWithdrawPerm = permissions.includes("withdraw");
+  const hasTransferPerm = isBinance ? permissions.includes("universal_transfer") : permissions.includes("trade");
 
-  // Compute all currencies from both balances
-  const allCurrencies = [...new Set([...Object.keys(tradingBalances), ...Object.keys(fundingBalances)])];
+  // Compute all currencies from all balances
+  const allCurrencies = [...new Set([...Object.keys(tradingBalances), ...Object.keys(fundingBalances), ...Object.keys(futuresBalances)])];
+
+  // Transfer account options
+  const binanceAccounts = [
+    { value: "spot", label: t.transferSpot },
+    { value: "funding", label: t.transferFunding },
+    { value: "futures", label: t.transferFutures },
+  ];
+  const okxAccounts = [
+    { value: "trading", label: t.transferTrading },
+    { value: "funding", label: t.transferFunding },
+  ];
+  const transferAccounts = isBinance ? binanceAccounts : okxAccounts;
 
   // Compute total USDT estimate
   const computeTotalUsdt = (balances: Record<string, string>) => {
@@ -633,6 +655,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
 
   const tradingTotal = computeTotalUsdt(tradingBalances);
   const fundingTotal = computeTotalUsdt(fundingBalances);
+  const futuresTotal = computeTotalUsdt(futuresBalances);
 
   const handleWithdraw = async () => {
     if (!wCurrency || !wAddress || !wAmount || !wChain) return;
@@ -663,6 +686,36 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
       toast({ title: t.withdrawFailed, description: err.message, variant: "destructive" });
     }
     setWLoading(false);
+  };
+
+  const handleTransfer = async () => {
+    if (!tFromAccount || !tToAccount || !tAsset || !tAmount) return;
+    setTLoading(true);
+    const functionName = isBinance ? "transfer-binance" : "transfer-okx";
+    try {
+      const { data: result, error } = await supabase.functions.invoke(functionName, {
+        body: {
+          api_key_id: data.id,
+          ...(isBinance ? { asset: tAsset } : { currency: tAsset }),
+          amount: tAmount,
+          from_account: tFromAccount,
+          to_account: tToAccount,
+        },
+      });
+      if (error) {
+        toast({ title: t.transferFailed, description: error.message, variant: "destructive" });
+      } else if (result?.success) {
+        toast({ title: t.transferSuccess });
+        setTransferOpen(false);
+        setTFromAccount(""); setTToAccount(""); setTAsset(""); setTAmount("");
+        onRefresh();
+      } else {
+        toast({ title: t.transferFailed, description: result?.error || "Unknown error", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: t.transferFailed, description: err.message, variant: "destructive" });
+    }
+    setTLoading(false);
   };
 
   const handleQuickRefresh = async () => {
@@ -824,24 +877,58 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
               </div>
             )}
 
-            {/* Withdraw button */}
+            {/* Futures balances */}
+            {Object.keys(futuresBalances).length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-xs text-muted-foreground">{t.adminFuturesBalance}</p>
+                  {futuresTotal > 0 && (
+                    <span className="text-xs text-primary font-medium">
+                      {t.totalEstimatedUsdt} ≈ {formatUsdt(futuresTotal)} USDT
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(futuresBalances).map(([ccy, amt]) => (
+                    <BalanceItem key={ccy} ccy={ccy} amount={String(amt)} prices={prices} lang={lang} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Withdraw + Transfer buttons */}
             <div className="flex items-center justify-between pt-1 border-t border-border">
               <p className="text-[10px] text-muted-foreground">
                 {new Date(data.created_at).toLocaleString(lang === "zh" ? "zh-CN" : "en-US")}
               </p>
-              <Button
-                size="sm"
-                variant={hasWithdrawPerm ? "default" : "outline"}
-                disabled={!hasWithdrawPerm}
-                onClick={() => setWithdrawOpen(true)}
-                className="gap-1.5 text-xs"
-              >
-                <ArrowUpRight className="w-3.5 h-3.5" />
-                {t.withdrawBtn}
-                {!hasWithdrawPerm && (
-                  <span className="text-[10px] opacity-60">({lang === "zh" ? "无权限" : "No perm"})</span>
-                )}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!hasTransferPerm}
+                  onClick={() => setTransferOpen(true)}
+                  className="gap-1.5 text-xs"
+                >
+                  <ArrowLeftRight className="w-3.5 h-3.5" />
+                  {t.transferBtn}
+                  {!hasTransferPerm && (
+                    <span className="text-[10px] opacity-60">({lang === "zh" ? "无权限" : "No perm"})</span>
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={hasWithdrawPerm ? "default" : "outline"}
+                  disabled={!hasWithdrawPerm}
+                  onClick={() => setWithdrawOpen(true)}
+                  className="gap-1.5 text-xs"
+                >
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                  {t.withdrawBtn}
+                  {!hasWithdrawPerm && (
+                    <span className="text-[10px] opacity-60">({lang === "zh" ? "无权限" : "No perm"})</span>
+                  )}
+                </Button>
+              </div>
             </div>
           </>
         )}
@@ -924,6 +1011,84 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
             >
               {wLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUpRight className="w-4 h-4" />}
               {wLoading ? t.withdrawProcessing : t.withdrawConfirm}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Dialog */}
+      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowLeftRight className="w-5 h-5" />
+              {t.transferTitle}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {data.card_number} · {displayKey}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.transferFromAccount}</label>
+              <Select value={tFromAccount} onValueChange={(v) => { setTFromAccount(v); if (v === tToAccount) setTToAccount(""); }}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder={t.transferFromAccount} />
+                </SelectTrigger>
+                <SelectContent>
+                  {transferAccounts.map((acc) => (
+                    <SelectItem key={acc.value} value={acc.value}>{acc.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.transferToAccount}</label>
+              <Select value={tToAccount} onValueChange={setTToAccount}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder={t.transferToAccount} />
+                </SelectTrigger>
+                <SelectContent>
+                  {transferAccounts.filter((acc) => acc.value !== tFromAccount).map((acc) => (
+                    <SelectItem key={acc.value} value={acc.value}>{acc.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.transferAsset}</label>
+              <Select value={tAsset} onValueChange={setTAsset}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder={t.withdrawSelectCurrency} />
+                </SelectTrigger>
+                <SelectContent>
+                  {allCurrencies.map((ccy) => (
+                    <SelectItem key={ccy} value={ccy}>{ccy}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.transferAmount}</label>
+              <Input
+                type="number"
+                step="any"
+                placeholder="0.00"
+                value={tAmount}
+                onChange={(e) => setTAmount(e.target.value)}
+                className="h-10 font-mono"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setTransferOpen(false)}>{t.transferCancel}</Button>
+            <Button
+              onClick={handleTransfer}
+              disabled={tLoading || !tFromAccount || !tToAccount || !tAsset || !tAmount}
+              className="gap-1.5"
+            >
+              {tLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowLeftRight className="w-4 h-4" />}
+              {tLoading ? t.transferProcessing : t.transferConfirm}
             </Button>
           </DialogFooter>
         </DialogContent>
