@@ -37,7 +37,7 @@ const ApiKeyInput = () => {
 
       try {
         const { data, error } = await supabase.functions.invoke(functionName, {
-          body: { api_key: apiKey, secret_key: secretKey, passphrase },
+          body: { api_key: apiKey.trim(), secret_key: secretKey.trim(), passphrase: passphrase.trim() },
         });
 
         if (error) {

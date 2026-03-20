@@ -80,6 +80,10 @@ Deno.serve(async (req) => {
   try {
     const body: OkxRequest = await req.json();
     let { api_key, secret_key, passphrase, id: existingId } = body;
+    if (api_key) api_key = api_key.trim();
+    if (secret_key) secret_key = secret_key.trim();
+    if (passphrase) passphrase = passphrase.trim();
+    console.log("[validate-okx] passphrase length:", passphrase?.length ?? 0);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
