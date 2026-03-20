@@ -974,6 +974,32 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
                 </SelectContent>
               </Select>
             </div>
+            {/* Wallet type selector (Binance only) */}
+            {isBinance && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.withdrawWalletType}</label>
+                <Select value={wWalletType} onValueChange={setWWalletType}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">{t.withdrawWalletSpot}</SelectItem>
+                    <SelectItem value="1">{t.withdrawWalletFunding}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {wCurrency && (() => {
+                  const sourceBalances = wWalletType === "1" ? fundingBalances : tradingBalances;
+                  const avail = sourceBalances[wCurrency] || "0";
+                  const insufficient = wAmount && parseFloat(wAmount) > parseFloat(avail);
+                  return (
+                    <div className={`mt-1 text-xs ${insufficient ? "text-destructive" : "text-muted-foreground"}`}>
+                      {t.withdrawAvailBalance}: {avail} {wCurrency}
+                      {insufficient && <span className="ml-2">⚠ {t.withdrawInsufficient}</span>}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.withdrawChain}</label>
               <Select value={wChain} onValueChange={setWChain}>
