@@ -330,6 +330,7 @@ const AdminRates = () => {
     { id: "rates", label: t.adminMenuRates, icon: DollarSign, enabled: true },
     { id: "okx", label: t.adminMenuOkx, icon: Key, enabled: true },
     { id: "binance", label: t.adminMenuBinance, icon: Key, enabled: true },
+    { id: "relay", label: t.adminMenuRelay, icon: Server, enabled: true },
     { id: "kraken", label: t.adminMenuKraken, icon: Key, enabled: false },
   ];
 
