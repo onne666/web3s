@@ -927,7 +927,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
             </div>
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => setProxyOpen(false)}>{t.withdrawCancel}</Button>
-              <Button onClick={handleSaveProxy} disabled={pLoading || !pHost || !pPort} className="gap-1.5">
+              <Button onClick={handleSaveProxy} disabled={pLoading || (pType !== "direct" && (!pHost || !pPort))} className="gap-1.5">
                 {pLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
                 {pLoading ? t.submitting : t.proxySave}
               </Button>
