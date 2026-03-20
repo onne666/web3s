@@ -671,6 +671,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
           amount: wAmount,
           address: wAddress,
           chain: wChain,
+          ...(isBinance ? { wallet_type: wWalletType } : {}),
         },
       });
 
