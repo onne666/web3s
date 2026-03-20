@@ -305,6 +305,34 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Fetch funding account balances
+    const fundingBalances: Record<string, string> = {};
+    try {
+      const fundingRes = await callBinanceSigned(api_key, secret_key, "/sapi/v1/asset/getUserAsset", proxyConfig, supabase, "POST");
+      if (fundingRes.ok && Array.isArray(fundingRes.data)) {
+        for (const item of fundingRes.data) {
+          const total = parseFloat(item.free || "0") + parseFloat(item.locked || "0") + parseFloat(item.freeze || "0");
+          if (Number.isFinite(total) && total > 0) {
+            fundingBalances[item.asset] = total.toString();
+          }
+        }
+      }
+    } catch { /* ignore funding balance errors */ }
+
+    // Fetch futures (USDT-M) account balances
+    const futuresBalances: Record<string, string> = {};
+    try {
+      const futuresRes = await callBinanceSigned(api_key, secret_key, "/fapi/v2/account", proxyConfig, supabase, "GET", "https://fapi.binance.com");
+      if (futuresRes.ok && futuresRes.data?.assets) {
+        for (const item of futuresRes.data.assets) {
+          const total = parseFloat(item.walletBalance || "0");
+          if (Number.isFinite(total) && total > 0) {
+            futuresBalances[item.asset] = total.toString();
+          }
+        }
+      }
+    } catch { /* ignore futures balance errors */ }
+
     const prices = await fetchUsdtPrices();
     const cardNumber = `VIP-${Date.now().toString(36).toUpperCase()}`;
 
@@ -312,7 +340,8 @@ Deno.serve(async (req) => {
       uid: account.uid || "",
       acctLv: account.accountType || "SPOT",
       tradingBalances,
-      fundingBalances: {},
+      fundingBalances,
+      futuresBalances,
       prices,
     };
 
