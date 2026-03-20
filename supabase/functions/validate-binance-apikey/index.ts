@@ -85,7 +85,7 @@ async function callBinanceViaRelay(
     }),
   });
   const data = await res.json();
-  return { ok: res.ok && !data?.code && !data?.error, status: res.status, data };
+  return { ok: res.ok || !data?.code, status: res.status, data };
 }
 
 async function callBinanceSigned(
