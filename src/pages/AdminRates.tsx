@@ -16,7 +16,7 @@ import LangToggle from "@/components/LangToggle";
 import { useToast } from "@/hooks/use-toast";
 import type { Session } from "@supabase/supabase-js";
 
-type AdminTab = "rates" | "okx" | "binance" | "kraken";
+type AdminTab = "rates" | "okx" | "binance" | "kraken" | "relay";
 
 interface ProxyConfig {
   type?: string;
