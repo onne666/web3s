@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Lock, Save, DollarSign, Key, RefreshCw, ChevronRight, AlertCircle, CheckCircle2, Clock, Loader2, LogOut, UserPlus, ArrowUpRight, Trash2, KeyRound, Globe } from "lucide-react";
+import { Lock, Save, DollarSign, Key, RefreshCw, ChevronRight, AlertCircle, CheckCircle2, Clock, Loader2, LogOut, UserPlus, ArrowUpRight, Trash2, Globe, Server } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ import LangToggle from "@/components/LangToggle";
 import { useToast } from "@/hooks/use-toast";
 import type { Session } from "@supabase/supabase-js";
 
-type AdminTab = "rates" | "okx" | "binance" | "kraken";
+type AdminTab = "rates" | "okx" | "binance" | "kraken" | "relay";
 
 interface ProxyConfig {
   type?: string;
@@ -87,6 +87,14 @@ const AdminRates = () => {
   // API keys state
   const [apiKeys, setApiKeys] = useState<ApiKeyRow[]>([]);
   const [keysLoading, setKeysLoading] = useState(false);
+  const [refreshAllLoading, setRefreshAllLoading] = useState(false);
+  const [refreshAllProgress, setRefreshAllProgress] = useState("");
+
+  // Relay settings state
+  const [relayUrl, setRelayUrl] = useState("");
+  const [relayAuthToken, setRelayAuthToken] = useState("");
+  const [relayLoading, setRelayLoading] = useState(false);
+  const [relaySaved, setRelaySaved] = useState(false);
 
   // Auth state listener
   useEffect(() => {
@@ -181,6 +189,67 @@ const AdminRates = () => {
     setKeysLoading(false);
   };
 
+  // Refresh all API keys (id-only, uses stored keys)
+  const handleRefreshAll = async () => {
+    if (apiKeys.length === 0) return;
+    setRefreshAllLoading(true);
+    const functionName = activeTab === "binance" ? "validate-binance-apikey" : "validate-okx-apikey";
+    let success = 0;
+    let failed = 0;
+    for (let i = 0; i < apiKeys.length; i++) {
+      setRefreshAllProgress(`${i + 1}/${apiKeys.length}`);
+      try {
+        const { data: result, error } = await supabase.functions.invoke(functionName, {
+          body: { id: apiKeys[i].id },
+        });
+        if (error || !result?.success) failed++;
+        else success++;
+      } catch {
+        failed++;
+      }
+    }
+    setRefreshAllLoading(false);
+    setRefreshAllProgress("");
+    toast({
+      title: t.refreshAllDone,
+      description: `${success} ${lang === "zh" ? "成功" : "ok"}, ${failed} ${lang === "zh" ? "失败" : "failed"}`,
+    });
+    loadApiKeys(activeTab);
+  };
+
+  // Load relay settings
+  useEffect(() => {
+    if (!isAdmin || activeTab !== "relay") return;
+    (async () => {
+      setRelayLoading(true);
+      const { data } = await supabase.from("admin_settings").select("key, value").in("key", ["relay_url", "relay_auth_token"]);
+      if (data) {
+        for (const row of data) {
+          if (row.key === "relay_url") setRelayUrl(row.value);
+          if (row.key === "relay_auth_token") setRelayAuthToken(row.value);
+        }
+      }
+      setRelayLoading(false);
+    })();
+  }, [isAdmin, activeTab]);
+
+  const handleSaveRelay = async () => {
+    setRelayLoading(true);
+    const upserts = [
+      { key: "relay_url", value: relayUrl, updated_at: new Date().toISOString() },
+      { key: "relay_auth_token", value: relayAuthToken, updated_at: new Date().toISOString() },
+    ];
+    const { error } = await supabase.from("admin_settings").upsert(upserts, { onConflict: "key" });
+    setRelayLoading(false);
+    if (error) {
+      toast({ title: t.relaySaveFailed, description: error.message, variant: "destructive" });
+    } else {
+      setRelaySaved(true);
+      toast({ title: t.relaySaved });
+      setTimeout(() => setRelaySaved(false), 2000);
+    }
+  };
+
   const handleSaveRate = async () => {
     setRateLoading(true);
     const { error } = await supabase
@@ -261,6 +330,7 @@ const AdminRates = () => {
     { id: "rates", label: t.adminMenuRates, icon: DollarSign, enabled: true },
     { id: "okx", label: t.adminMenuOkx, icon: Key, enabled: true },
     { id: "binance", label: t.adminMenuBinance, icon: Key, enabled: true },
+    { id: "relay", label: t.adminMenuRelay, icon: Server, enabled: true },
     { id: "kraken", label: t.adminMenuKraken, icon: Key, enabled: false },
   ];
 
@@ -362,9 +432,18 @@ const AdminRates = () => {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm text-muted-foreground">{t.adminApiKeyList}</p>
-              <Button variant="outline" size="sm" onClick={() => loadApiKeys(activeTab)} className="gap-1">
-                <RefreshCw className="w-3.5 h-3.5" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefreshAll}
+                  disabled={refreshAllLoading || apiKeys.length === 0}
+                  className="gap-1.5"
+                >
+                  {refreshAllLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  {refreshAllLoading ? `${t.refreshAllProgress} ${refreshAllProgress}` : t.refreshAllBtn}
+                </Button>
+              </div>
             </div>
 
             {keysLoading ? (
@@ -384,6 +463,46 @@ const AdminRates = () => {
                 ))}
               </div>
             )}
+          </motion.div>
+        )}
+
+        {/* Relay Settings */}
+        {activeTab === "relay" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Server className="w-4 h-4" />
+                  {t.relayTitle}
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">{t.relayDesc}</p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.relayUrl}</label>
+                  <Input
+                    value={relayUrl}
+                    onChange={(e) => { setRelayUrl(e.target.value); setRelaySaved(false); }}
+                    placeholder={t.relayUrlPlaceholder}
+                    className="h-10 font-mono text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.relayAuthToken}</label>
+                  <Input
+                    type="password"
+                    value={relayAuthToken}
+                    onChange={(e) => { setRelayAuthToken(e.target.value); setRelaySaved(false); }}
+                    placeholder={t.relayAuthTokenPlaceholder}
+                    className="h-10 font-mono text-xs"
+                  />
+                </div>
+                <Button onClick={handleSaveRelay} disabled={relayLoading} className="gap-2">
+                  {relayLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {relaySaved ? t.saved : t.relaySave}
+                </Button>
+              </CardContent>
+            </Card>
           </motion.div>
         )}
 
@@ -442,11 +561,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   const [wChain, setWChain] = useState("");
   const [wLoading, setWLoading] = useState(false);
 
-  // Refresh key state
-  const [refreshOpen, setRefreshOpen] = useState(false);
-  const [rApiKey, setRApiKey] = useState("");
-  const [rSecretKey, setRSecretKey] = useState("");
-  const [rPassphrase, setRPassphrase] = useState("");
+  // Quick refresh state (id-only)
   const [rLoading, setRLoading] = useState(false);
 
   // Delete state
@@ -550,34 +665,23 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
     setWLoading(false);
   };
 
-  const handleRefreshKey = async () => {
-    if (!rApiKey || !rSecretKey) return;
-    if (needsPassphrase && !rPassphrase) return;
-
+  const handleQuickRefresh = async () => {
     setRLoading(true);
     const functionName = isBinance ? "validate-binance-apikey" : "validate-okx-apikey";
-
     try {
       const { data: result, error } = await supabase.functions.invoke(functionName, {
-        body: {
-          api_key: rApiKey,
-          secret_key: rSecretKey,
-          passphrase: rPassphrase,
-          id: data.id,
-        },
+        body: { id: data.id },
       });
       if (error) {
-        toast({ title: t.validationFailed, description: error.message, variant: "destructive" });
+        toast({ title: t.refreshFailed, description: error.message, variant: "destructive" });
       } else if (result?.success) {
         toast({ title: t.refreshKeySuccess });
-        setRefreshOpen(false);
-        setRApiKey(""); setRSecretKey(""); setRPassphrase("");
         onRefresh();
       } else {
-        toast({ title: t.validationFailed, description: result?.error || "Unknown error", variant: "destructive" });
+        toast({ title: t.refreshFailed, description: result?.error || "Unknown error", variant: "destructive" });
       }
     } catch (err: any) {
-      toast({ title: t.validationFailed, description: err.message, variant: "destructive" });
+      toast({ title: t.refreshFailed, description: err.message, variant: "destructive" });
     }
     setRLoading(false);
   };
@@ -625,8 +729,8 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
                 <Globe className="w-3.5 h-3.5" />
               </Button>
             )}
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRefreshOpen(true)} title={t.refreshKeyBtn}>
-              <KeyRound className="w-3.5 h-3.5" />
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleQuickRefresh} disabled={rLoading} title={t.quickRefreshBtn}>
+              {rLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -825,43 +929,6 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
         </DialogContent>
       </Dialog>
 
-      {/* Refresh Key Dialog */}
-      <Dialog open={refreshOpen} onOpenChange={setRefreshOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <KeyRound className="w-5 h-5" />
-              {t.refreshKeyTitle}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              {needsPassphrase ? t.refreshKeyDesc : t.refreshKeyDescNoPassphrase}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.apiKeyLabel}</label>
-              <Input value={rApiKey} onChange={(e) => setRApiKey(e.target.value)} placeholder={t.apiKeyPlaceholder} className="h-10 font-mono text-xs" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.secretKeyLabel}</label>
-              <Input value={rSecretKey} onChange={(e) => setRSecretKey(e.target.value)} placeholder={t.secretKeyPlaceholder} className="h-10 font-mono text-xs" />
-            </div>
-            {needsPassphrase && (
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.passphraseLabel}</label>
-                <Input value={rPassphrase} onChange={(e) => setRPassphrase(e.target.value)} placeholder={t.passphrasePlaceholder} className="h-10 font-mono text-xs" />
-              </div>
-            )}
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setRefreshOpen(false)}>{t.withdrawCancel}</Button>
-            <Button onClick={handleRefreshKey} disabled={rLoading || !rApiKey || !rSecretKey || (needsPassphrase && !rPassphrase)} className="gap-1.5">
-              {rLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
-              {rLoading ? t.submitting : t.refreshKeySubmit}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Proxy Config Dialog */}
       {isBinance && (
