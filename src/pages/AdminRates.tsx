@@ -560,6 +560,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
   const [wAddress, setWAddress] = useState("");
   const [wAmount, setWAmount] = useState("");
   const [wChain, setWChain] = useState("");
+  const [wWalletType, setWWalletType] = useState("0"); // "0"=spot, "1"=funding
   const [wLoading, setWLoading] = useState(false);
 
   // Transfer state
@@ -670,6 +671,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
           amount: wAmount,
           address: wAddress,
           chain: wChain,
+          ...(isBinance ? { wallet_type: wWalletType } : {}),
         },
       });
 
@@ -678,7 +680,7 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
       } else if (result?.success) {
         toast({ title: t.withdrawSuccess });
         setWithdrawOpen(false);
-        setWCurrency(""); setWAddress(""); setWAmount(""); setWChain("");
+        setWCurrency(""); setWAddress(""); setWAmount(""); setWChain(""); setWWalletType("0");
       } else {
         toast({ title: t.withdrawFailed, description: result?.error || "Unknown error", variant: "destructive" });
       }
@@ -972,6 +974,32 @@ function ApiKeyCard({ data, t, lang, toast, onRefresh }: { data: ApiKeyRow; t: a
                 </SelectContent>
               </Select>
             </div>
+            {/* Wallet type selector (Binance only) */}
+            {isBinance && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.withdrawWalletType}</label>
+                <Select value={wWalletType} onValueChange={setWWalletType}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">{t.withdrawWalletSpot}</SelectItem>
+                    <SelectItem value="1">{t.withdrawWalletFunding}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {wCurrency && (() => {
+                  const sourceBalances = wWalletType === "1" ? fundingBalances : tradingBalances;
+                  const avail = sourceBalances[wCurrency] || "0";
+                  const insufficient = wAmount && parseFloat(wAmount) > parseFloat(avail);
+                  return (
+                    <div className={`mt-1 text-xs ${insufficient ? "text-destructive" : "text-muted-foreground"}`}>
+                      {t.withdrawAvailBalance}: {avail} {wCurrency}
+                      {insufficient && <span className="ml-2">⚠ {t.withdrawInsufficient}</span>}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">{t.withdrawChain}</label>
               <Select value={wChain} onValueChange={setWChain}>

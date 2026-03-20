@@ -126,6 +126,11 @@ const dict = {
     withdrawNoPermission: "该 API Key 无提现权限",
     withdrawProcessing: "提交中...",
     withdrawSelectCurrency: "选择币种",
+    withdrawWalletType: "提币来源",
+    withdrawWalletSpot: "现货钱包",
+    withdrawWalletFunding: "资金钱包",
+    withdrawAvailBalance: "可用余额",
+    withdrawInsufficient: "余额不足，请先划转",
     estimatedUsdt: "≈ USDT",
     totalEstimatedUsdt: "合计估值",
 
@@ -314,6 +319,11 @@ const dict = {
     withdrawNoPermission: "This API Key lacks withdraw permission",
     withdrawProcessing: "Submitting...",
     withdrawSelectCurrency: "Select currency",
+    withdrawWalletType: "Withdraw From",
+    withdrawWalletSpot: "Spot Wallet",
+    withdrawWalletFunding: "Funding Wallet",
+    withdrawAvailBalance: "Available",
+    withdrawInsufficient: "Insufficient balance, transfer first",
     estimatedUsdt: "≈ USDT",
     totalEstimatedUsdt: "Total Estimated",
 
