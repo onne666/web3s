@@ -1,73 +1,38 @@
 
 
-## 使用正确的币安接口获取 API Key 权限
+## 修复 Relay "Invalid URL" 错误
 
-### 问题
+### 根因
 
-当前使用 `/api/v3/account` 接口来判断权限，该接口返回的字段有限（`canTrade`、`canWithdraw`、`canDeposit`、`permissions` 数组）。
+Edge function 在没有有效代理时，仍然调用 relay 并传入 `{ enabled: false }` 作为 proxy 配置。Relay 的 `buildAgent()` 不检查 `enabled` 字段，尝试用 `undefined` 的 host/port 构造代理 URL，导致 "Invalid URL"。
 
-币安有专门的权限查询接口：**`GET /sapi/v1/account/apiRestrictions`**，返回更详细的权限字段：
+### 修复方案
 
-```json
-{
-  "ipRestrict": false,
-  "enableReading": true,
-  "enableWithdrawals": false,
-  "enableInternalTransfer": true,
-  "enableMargin": false,
-  "enableFutures": false,
-  "permitsUniversalTransfer": true,
-  "enableVanillaOptions": false,
-  "enableSpotAndMarginTrading": false,
-  "enablePortfolioMarginTrading": true
-}
+**修改 `callBinanceSigned`（edge function）**：当没有有效代理配置时，不经过 relay，直接请求币安 API。只有当代理配置有效（`enabled && host`）时才走 relay。
+
+```text
+当前逻辑：
+  有 relay 环境变量 → 总是走 relay（即使 proxy 无效）→ relay 报错 → fallback 直连
+
+修复后：
+  有 relay 环境变量 AND 有有效 proxy → 走 relay
+  否则 → 直连币安
 ```
 
-### 方案
+**具体改动**：`supabase/functions/validate-binance-apikey/index.ts` 约第 118-135 行
 
-**1. 后端：新增调用 `/sapi/v1/account/apiRestrictions`**
+将判断逻辑从：
+- `if (useRelay)` → 总是调 relay
 
-在 `validate-binance-apikey/index.ts` 中，验证成功后额外请求该接口，用其返回值来构建权限列表：
+改为：
+- `if (useRelay && proxyConfig?.enabled && proxyConfig?.host)` → 仅在有有效代理时调 relay
+- 否则直连 `https://api.binance.com`
 
-```typescript
-const restrictRes = await callBinanceSigned(api_key, secret_key, "/sapi/v1/account/apiRestrictions", proxyConfig);
-const r = restrictRes.ok ? restrictRes.data : {};
+同时对 `withdraw-binance/index.ts` 做相同修改（如果也有类似逻辑）。
 
-const permissions: string[] = [];
-if (r.enableReading)                permissions.push("read_only");
-if (r.enableSpotAndMarginTrading)   permissions.push("spot_trade");
-if (r.enableWithdrawals)            permissions.push("withdraw");
-if (r.enableInternalTransfer)       permissions.push("internal_transfer");
-if (r.enableMargin)                 permissions.push("margin");
-if (r.enableFutures)                permissions.push("futures");
-if (r.enableVanillaOptions)         permissions.push("vanilla_options");
-if (r.permitsUniversalTransfer)     permissions.push("universal_transfer");
-if (r.enablePortfolioMarginTrading) permissions.push("portfolio_margin");
-if (r.ipRestrict)                   permissions.push("ip_restrict");
-```
+### 影响
 
-如果该接口调用失败，fallback 到原来的 `/api/v3/account` 字段解析逻辑。
-
-**2. 前端：扩展 `PERM_CONFIG`**
-
-在 `AdminRates.tsx` 中增加新权限的标签和颜色：
-
-| key | 中文 | 英文 | 颜色 |
-|-----|------|------|------|
-| `read_only` | 只读 | Read | 绿色 |
-| `spot_trade` | 现货交易 | Spot Trade | 琥珀色 |
-| `withdraw` | 提现 | Withdraw | 玫红色 |
-| `internal_transfer` | 内部划转 | Internal Transfer | 蓝色 |
-| `margin` | 杠杆 | Margin | 紫色 |
-| `futures` | 合约 | Futures | 橙色 |
-| `vanilla_options` | 期权 | Options | 粉色 |
-| `universal_transfer` | 万向划转 | Universal Transfer | 青色 |
-| `portfolio_margin` | 统一账户 | Portfolio Margin | 石板色 |
-| `ip_restrict` | IP限制 | IP Restrict | 灰色 |
-
-移除不再需要的 `deposit` 和 `leveraged`。
-
-**3. 部署 `validate-binance-apikey` 函数**
-
-部署后刷新已有 Key 即可看到完整权限。
+- 有代理配置的 API Key：继续走 relay 中转（满足 IP 白名单）
+- 无代理配置的 API Key：直连币安（无需中转）
+- 消除 "Invalid URL" 错误，权限接口 `/sapi/v1/account/apiRestrictions` 能正常返回数据
 
