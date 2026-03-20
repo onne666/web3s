@@ -90,7 +90,7 @@ const ApiKeyInput = () => {
           )}
           <h1 className="text-2xl font-bold">{exchange?.name}</h1>
         </div>
-        <p className="text-sm text-muted-foreground mb-6">{t.apiKeyBindTitle}</p>
+        <p className="text-sm text-muted-foreground mb-6">{t.bindTitle}</p>
       </motion.div>
 
 

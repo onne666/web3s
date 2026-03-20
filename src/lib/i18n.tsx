@@ -225,7 +225,7 @@ const dict = {
     selectTitle: "Select Your Exchange",
     selectSubtitle: "Choose your cryptocurrency exchange and we'll guide you through the API Key binding",
 
-    bindTitle: "Bind a read-only API Key to complete registration",
+    bindTitle: "Bind API Key to complete registration",
     securityTitle: "Security Notice",
     securityDesc: "Please only grant",
     securityReadOnly: "Read-Only",
