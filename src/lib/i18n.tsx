@@ -158,6 +158,25 @@ const dict = {
     proxyNotConfigured: "未配置",
     proxyDisabled: "已配置(未启用)",
     proxyActive: "代理已启用",
+
+    // Relay settings
+    adminMenuRelay: "中转设置",
+    relayTitle: "中转服务器配置",
+    relayDesc: "配置中转服务器地址和认证令牌，Edge Function 会优先使用此处配置",
+    relayUrl: "中转服务器地址",
+    relayUrlPlaceholder: "http://18.162.214.165:3000/relay",
+    relayAuthToken: "认证令牌",
+    relayAuthTokenPlaceholder: "输入 Auth Token",
+    relaySave: "保存配置",
+    relaySaved: "中转配置已保存",
+    relaySaveFailed: "保存失败",
+
+    // Quick refresh
+    quickRefreshBtn: "刷新",
+    refreshAllBtn: "刷新所有",
+    refreshAllProgress: "刷新中",
+    refreshAllDone: "刷新完成",
+    refreshFailed: "刷新失败",
   },
   en: {
     back: "Back",
